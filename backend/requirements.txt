@@ -1,4 +1,3 @@
-# Core API
 fastapi>=0.100.0
 uvicorn>=0.23.0
 python-dotenv>=1.0.0
@@ -11,8 +10,22 @@ sqlalchemy>=2.0.0
 PyMuPDF>=1.23.0
 python-multipart>=0.0.6
 
-# Dev / Testing
+# TTS - Kokoro (local neural TTS, runs fully offline after first model download)
+kokoro-onnx>=0.4.7
+soundfile
+onnxruntime
+espeakng-loader
+
+# TTS - Word alignment (word-level highlighting)
+faster-whisper==1.0.3
+
+# TTS - gTTS fallback (requires internet, free)
+gTTS>=2.5.0
+
+# Dev
 black
 ruff
+
+# Testing
 pytest==8.0.2
 httpx==0.27.0

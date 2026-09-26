@@ -1,0 +1,5 @@
+{
+  "summary": "ReaderContext providing reader state: theme, fontSize, fontFamily, playbackSpeed, layout, readerViewMode, activeBlockId, isPlaying, currentTime",
+  "updatedAt": "2026-09-26T06:21:14.385237Z",
+  "userFacing": true
+}

@@ -3,9 +3,50 @@ from typing import List, Optional
 from datetime import datetime
 
 
-# ---------------------------------------------------------------------------
-# Folder
-# ---------------------------------------------------------------------------
+class DocumentBlockBase(BaseModel):
+    block_index: int
+    page_number: Optional[int]
+    text: str
+    audio_status: str = "none"
+    audio_path: Optional[str] = None
+    audio_voice: Optional[str] = None
+    audio_duration: Optional[float] = None
+    word_timestamps: Optional[str] = None
+    text_spans: Optional[str] = None
+
+
+class AudioGenerationRequest(BaseModel):
+    voice_tier: str = "kokoro_female_1"
+
+
+class TextInputRequest(BaseModel):
+    title: Optional[str] = None
+    text: str
+    folder_id: Optional[int] = None
+
+
+class DocumentBlockSchema(DocumentBlockBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentBase(BaseModel):
+    filename: str
+    file_type: str
+
+
+class DocumentSchema(DocumentBase):
+    id: int
+    folder_id: Optional[int] = None
+    source_path: Optional[str] = None
+    page_count: Optional[int] = None
+    upload_date: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentDetailSchema(DocumentSchema):
+    blocks: List[DocumentBlockSchema]
+
 
 class FolderCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
@@ -22,50 +63,6 @@ class FolderSchema(BaseModel):
     document_count: int = 0
     model_config = ConfigDict(from_attributes=True)
 
-
-# ---------------------------------------------------------------------------
-# Document
-# ---------------------------------------------------------------------------
-
-class TextInputRequest(BaseModel):
-    title: Optional[str] = None
-    text: str
-    folder_id: Optional[int] = None
-
-
-class DocumentSchema(BaseModel):
-    id: int
-    filename: str
-    file_type: str
-    folder_id: Optional[int] = None
-    source_path: Optional[str] = None
-    page_count: Optional[int] = None
-    upload_date: datetime
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ---------------------------------------------------------------------------
-# Document Block
-# ---------------------------------------------------------------------------
-
-class DocumentBlockSchema(BaseModel):
-    id: int
-    block_index: int
-    page_number: Optional[int]
-    text: str
-    audio_status: str = "none"
-    audio_path: Optional[str] = None
-    audio_duration: Optional[float] = None
-    model_config = ConfigDict(from_attributes=True)
-
-
-class DocumentDetailSchema(DocumentSchema):
-    blocks: List[DocumentBlockSchema]
-
-
-# ---------------------------------------------------------------------------
-# Bulk ops
-# ---------------------------------------------------------------------------
 
 class BulkMoveRequest(BaseModel):
     document_ids: List[int] = Field(..., min_length=1)

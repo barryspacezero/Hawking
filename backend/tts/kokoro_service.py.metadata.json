@@ -1,0 +1,5 @@
+{
+  "summary": "Kokoro TTS service - downloads ONNX model on first use, lazy singleton, synthesizes text to WAV bytes",
+  "updatedAt": "2026-09-26T06:19:31.363818300Z",
+  "userFacing": true
+}

@@ -1,0 +1,5 @@
+{
+  "summary": "AudioPlayer component: fixed bottom bar with play/pause, skip forward/back 10s, speed cycling (1x-2x), block progress bar, and audio download. Streams audio block-by-block from the backend.",
+  "updatedAt": "2026-09-26T06:22:41.452679800Z",
+  "userFacing": true
+}

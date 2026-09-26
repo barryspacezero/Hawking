@@ -1,0 +1,5 @@
+{
+  "summary": "Utility functions for word-level text highlighting: buildTextTokens aligns Whisper word timestamps to source text tokens for word-by-word audio highlighting",
+  "updatedAt": "2026-09-26T06:21:28.471791900Z",
+  "userFacing": true
+}

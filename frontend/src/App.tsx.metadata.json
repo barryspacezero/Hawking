@@ -1,0 +1,5 @@
+{
+  "summary": "App.tsx updated to wrap entire app in ReaderProvider and add /documents/:id route for DocumentDetail reader page",
+  "updatedAt": "2026-09-26T06:23:35.794920Z",
+  "userFacing": true
+}

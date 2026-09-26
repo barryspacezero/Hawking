@@ -1,0 +1,5 @@
+{
+  "summary": "Updated documents router adding TTS audio generation endpoints: POST /{id}/generate-audio, GET /{id}/audio-status, GET /{id}/blocks/{block_id}/audio",
+  "updatedAt": "2026-09-26T06:20:37.313118800Z",
+  "userFacing": true
+}
