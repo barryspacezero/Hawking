@@ -1,17 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Library, Search, FileText, Mic, Folder, Home, LogOut, AudioLines } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Library, Mic, Folder, Home, LogOut, AudioLines } from 'lucide-react';
 import BionicReadingToggle from './BionicReadingToggle';
 import { ReaderSettingsTrigger } from './ReaderSettingsMenu';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { fetchDocuments, fetchFolders } from '../api/library';
-import type { DocumentItem, FolderItem } from '../types/library';
+import { fetchFolders } from '../api/library';
+import type { FolderItem } from '../types/library';
 import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar() {
-  const [activeTab, setActiveTab] = useState<'Tasks' | 'Files'>('Files');
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -19,26 +16,14 @@ export default function Sidebar() {
   useEffect(() => {
     const load = async () => {
       try {
-        const flds = await fetchFolders();`n        setFolders(flds);
+        const flds = await fetchFolders();
+        setFolders(flds);
       } catch (err) {
-        console.error('Failed to fetch library data', err);
+        console.error("Failed to fetch library data", err);
       }
     };
     load();
   }, [location.pathname]);
-
-  const filteredDocuments = useMemo(() => {
-    let docs = documents;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      docs = docs.filter((doc) => doc.filename.toLowerCase().includes(q));
-    }
-    if (activeTab === 'Tasks') {
-      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      docs = docs.filter((doc) => new Date(doc.upload_date).getTime() >= weekAgo);
-    }
-    return docs;
-  }, [documents, searchQuery, activeTab]);
 
   const navItems = [
     { name: 'Home', icon: Home, path: '/' },
@@ -68,7 +53,7 @@ export default function Sidebar() {
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-brand-light">
           <path d="M4 12C4 12 5.5 15 8 15C10.5 15 12 10 12 10C12 10 13.5 7 16 7C18.5 7 20 12 20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <span className="text-xl font-extrabold      tracking-wide">Hawking</span>
+        <span className="text-xl font-extrabold tracking-wide">Hawking</span>
       </Link>
 
       <div className="px-4 mb-4">
@@ -88,9 +73,7 @@ export default function Sidebar() {
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center space-x-3 px-3 py-2.5 rounded-none mb-0.5 transition ${
-                isActive ? 'bg-brand/15 text-brand-light font-semibold border-l-2 border-brand-light' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-              }`}
+              className={`flex items-center space-x-3 px-3 py-2.5 rounded-none mb-0.5 transition ${isActive ? 'bg-brand/15 text-brand-light font-semibold border-l-2 border-brand-light' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
             >
               <item.icon className="w-5 h-5" />
               <span className="text-sm">{item.name}</span>
@@ -107,11 +90,7 @@ export default function Sidebar() {
               <Link
                 key={folder.id}
                 to={`/library/folder/${folder.id}`}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-none transition ${
-                  location.pathname === `/library/folder/${folder.id}`
-                    ? 'bg-brand/10 text-brand'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                }`}
+                className={`flex items-center space-x-3 px-3 py-2 rounded-none transition ${location.pathname === `/library/folder/${folder.id}` ? 'bg-brand/10 text-brand' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
               >
                 <Folder className="w-4 h-4 text-brand shrink-0" />
                 <span className="text-sm truncate">{folder.name}</span>
@@ -132,7 +111,7 @@ export default function Sidebar() {
         </div>
         <div className="flex items-center justify-between group">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-none    flex items-center justify-center text-white font-bold ">
+            <div className="w-9 h-9 rounded-none flex items-center justify-center text-white font-bold">
               {userInitial}
             </div>
             <div className="max-w-[120px]">
@@ -152,8 +131,3 @@ export default function Sidebar() {
     </div>
   );
 }
-
-
-
-
-
