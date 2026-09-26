@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { Play, FileText, Headphones, Brain, Eye, Sparkles } from 'lucide-react';
+import { Play, Headphones, Brain, Eye, Sparkles } from 'lucide-react';
 import AsciiBackground from '../components/AsciiBackground';
 
 export default function Landing() {
@@ -214,6 +213,7 @@ export default function Landing() {
     </div>
   );
 }
+
 
 
 
