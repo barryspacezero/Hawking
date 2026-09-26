@@ -1,5 +1,5 @@
 {
-  "summary": "DocumentDetail page: fetches document blocks, allows TTS generation with voice picker, polls audio-status until done, renders TextViewReader with word highlight sync and AudioPlayer",
-  "updatedAt": "2026-09-26T06:23:20.535123300Z",
+  "summary": "Full DocumentDetail page with Reader View Toggle and Original PDF View",
+  "updatedAt": "2026-09-26T06:55:05.219442700Z",
   "userFacing": true
 }
