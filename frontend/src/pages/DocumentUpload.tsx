@@ -113,7 +113,6 @@ export default function DocumentUpload() {
           Browse Files
         </button>
       </div>
-      </div>
 
       {file && (
         <div className="mt-6 bg-cardBg  border border-borderDark rounded-none p-4 flex items-center justify-between">
@@ -162,6 +161,8 @@ export default function DocumentUpload() {
     </div>
   );
 }
+
+
 
 
 
