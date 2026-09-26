@@ -8,9 +8,7 @@ export const API_URL =
   envUrl ||
   (import.meta.env.DEV
     ? '/api'
-    : typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:8000`
-      : 'http://localhost:8000');
+    : '/api');
 
 export async function parseApiError(res: Response, fallback = 'Request failed'): Promise<string> {
   const contentType = res.headers.get('content-type') || '';
