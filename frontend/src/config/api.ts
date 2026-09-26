@@ -2,13 +2,9 @@
  * API base URL.
  * In dev, Vite proxies `/api` to the backend so uploads work without CORS issues.
  */
-const envUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
-
-export const API_URL =
-  envUrl ||
-  (import.meta.env.DEV
-    ? '/api'
-    : '/api');
+export const API_URL = import.meta.env.DEV 
+  ? (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '/api') 
+  : '/api';
 
 export async function parseApiError(res: Response, fallback = 'Request failed'): Promise<string> {
   const contentType = res.headers.get('content-type') || '';
