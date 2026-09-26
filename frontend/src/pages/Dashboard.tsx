@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Headphones, ChevronDown, Mic, ArrowUp, Plus } from 'lucide-react';
+import { FaGoogleDrive, FaDropbox, FaMicrosoft } from 'react-icons/fa';
+import { Type, Link as LinkIcon, BookOpen, Headphones, ChevronDown, Mic, ArrowUp, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PasteTextModal from '../components/PasteTextModal';
 import PasteLinkModal from '../components/PasteLinkModal';
@@ -173,6 +174,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
