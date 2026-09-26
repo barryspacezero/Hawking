@@ -19,9 +19,7 @@ export default function Sidebar() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [docs, flds] = await Promise.all([fetchDocuments(), fetchFolders()]);
-        setDocuments(docs);
-        setFolders(flds);
+        const flds = await fetchFolders();`n        setFolders(flds);
       } catch (err) {
         console.error('Failed to fetch library data', err);
       }
@@ -123,62 +121,7 @@ export default function Sidebar() {
         </div>
       )}
 
-      <div className="px-4 mb-4">
-        <div className="flex bg-black/40 rounded-none p-1 border border-white/5">
-          <button
-            className={`flex-1 text-xs font-medium py-1.5 rounded-none transition ${activeTab === 'Tasks' ? 'bg-brand/10 text-brand' : 'text-gray-400 hover:text-gray-300'}`}
-            onClick={() => setActiveTab('Tasks')}
-          >
-            Tasks
-          </button>
-          <button
-            className={`flex-1 text-xs font-medium py-1.5 rounded-none transition ${activeTab === 'Files' ? 'bg-brand/10 text-brand' : 'text-gray-400 hover:text-gray-300'}`}
-            onClick={() => setActiveTab('Files')}
-          >
-            Files
-          </button>
-        </div>
-      </div>
-
-      <div className="px-4 mb-4 relative">
-        <Search className="w-4 h-4 absolute left-7 top-1/2 -translate-y-1/2 text-gray-500" />
-        <input
-          type="text"
-          placeholder="Search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent border-none text-sm text-gray-200 placeholder-gray-500 pl-9 py-2 focus:outline-none focus:ring-0"
-        />
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
-        <div className="space-y-0.5">
-          {filteredDocuments.map((doc) => (
-            <Link
-              key={doc.id}
-              to={`/document/${doc.id}`}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-none transition ${
-                location.pathname === `/document/${doc.id}`
-                  ? 'bg-brand/10 text-brand'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-              }`}
-            >
-              <FileText className="w-4 h-4 opacity-70 shrink-0" />
-              <span className="text-sm truncate">{doc.filename}</span>
-            </Link>
-          ))}
-          {filteredDocuments.length === 0 && (
-            <div className="px-3 py-4 text-center text-xs text-gray-500">
-              {searchQuery.trim()
-                ? 'No documents match your search.'
-                : activeTab === 'Tasks'
-                  ? 'No recent documents this week.'
-                  : 'No documents yet.'}
-            </div>
-          )}
-        </div>
-      </div>
-
+      <div className="flex-1"></div>
       <div className="p-4 border-t border-borderDark mt-auto space-y-3">
         <div className="flex items-center justify-between px-1 gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Reading</span>
@@ -209,6 +152,8 @@ export default function Sidebar() {
     </div>
   );
 }
+
+
 
 
 
