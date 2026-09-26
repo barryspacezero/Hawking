@@ -20,7 +20,6 @@ VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/mode
 MODEL_PATH = os.path.join(MODELS_DIR, "kokoro-v1.0.onnx")
 VOICES_PATH = os.path.join(MODELS_DIR, "voices-v1.0.bin")
 
-
 class KokoroService:
     _instance = None
 
@@ -32,7 +31,7 @@ class KokoroService:
 
     def __init__(self):
         self.kokoro = None
-
+        
     def _download_file(self, url, dest):
         if not os.path.exists(dest):
             logger.info(f"Downloading {url} to {dest}...")
@@ -43,7 +42,7 @@ class KokoroService:
         if self.kokoro is None:
             self._download_file(MODEL_URL, MODEL_PATH)
             self._download_file(VOICES_URL, VOICES_PATH)
-
+            
             logger.info("Loading Kokoro-ONNX model into memory...")
             self.kokoro = Kokoro(MODEL_PATH, VOICES_PATH)
             logger.info("Kokoro-ONNX model loaded successfully.")
@@ -54,12 +53,12 @@ class KokoroService:
         """
         if not text.strip():
             raise ValueError("Empty text provided for synthesis")
-
+            
         self.load_model()
-
+        
         # Kokoro-ONNX creates audio stream/samples
         samples, sample_rate = self.kokoro.create(text, voice=voice, speed=1.0, lang="en-us")
-
+        
         # Convert raw samples to WAV bytes in memory
         wav_io = io.BytesIO()
         sf.write(wav_io, samples, sample_rate, format='WAV')

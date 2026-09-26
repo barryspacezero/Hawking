@@ -11,11 +11,20 @@ export interface TextToken {
   end: number;
 }
 
-/**
- * Aligns Whisper word timestamps to source text tokens.
- * Returns an array of tokens where each word token has start/end times
- * for real-time highlight syncing.
- */
+export interface PdfWordSpan {
+  word: string;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface PdfSpanData {
+  page_width: number;
+  page_height: number;
+  words: PdfWordSpan[];
+}
+
 export function buildTextTokens(blockText: string, wordTimestamps: WordTimestamp[]): TextToken[] {
   const tokens: TextToken[] = [];
   const regex = /([\w\u00C0-\u024F]+)|([^\w\u00C0-\u024F]+)/g;
@@ -33,10 +42,24 @@ export function buildTextTokens(blockText: string, wordTimestamps: WordTimestamp
   let tIdx = 0;
 
   while (tIdx < wordTokens.length && wIdx < wordTimestamps.length) {
+    const tStr = wordTokens[tIdx].text.toLowerCase();
+    const wStr = wordTimestamps[wIdx].word.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (!wStr) {
+      wIdx++;
+      continue;
+    }
+
     wordTokens[tIdx].start = wordTimestamps[wIdx].start;
     wordTokens[tIdx].end = wordTimestamps[wIdx].end;
-    tIdx++;
-    wIdx++;
+
+    if (tStr === wStr || tStr.includes(wStr) || wStr.includes(tStr)) {
+      tIdx++;
+      wIdx++;
+    } else {
+      tIdx++;
+      wIdx++;
+    }
   }
 
   const lastTime = wordTimestamps.length > 0 ? wordTimestamps[wordTimestamps.length - 1].end : 0;
@@ -56,4 +79,38 @@ export function getActiveWordIndex(tokens: TextToken[], currentTime: number): nu
     }
   });
   return wordIdx;
+}
+
+/** Map aligned text tokens to PDF word span indices for highlight overlays. */
+export function getActivePdfHighlights(
+  blockText: string,
+  wordTimestamps: WordTimestamp[],
+  spanData: PdfSpanData,
+  currentTime: number,
+): PdfWordSpan[] {
+  const tokens = buildTextTokens(blockText, wordTimestamps);
+  const activeWordIdx = getActiveWordIndex(tokens, currentTime);
+  if (activeWordIdx < 0) return [];
+
+  const wordTokenIndex = tokens
+    .slice(0, activeWordIdx + 1)
+    .filter((t) => t.type === 'word').length - 1;
+
+  if (wordTokenIndex < 0 || wordTokenIndex >= spanData.words.length) return [];
+
+  const span = spanData.words[wordTokenIndex];
+  return span ? [span] : [];
+}
+
+export function pdfSpanToPercent(
+  span: PdfWordSpan,
+  pageWidth: number,
+  pageHeight: number,
+): { left: number; top: number; width: number; height: number } {
+  return {
+    left: (span.x0 / pageWidth) * 100,
+    top: ((pageHeight - span.y1) / pageHeight) * 100,
+    width: ((span.x1 - span.x0) / pageWidth) * 100,
+    height: ((span.y1 - span.y0) / pageHeight) * 100,
+  };
 }

@@ -11,16 +11,22 @@ interface ReaderState {
   playbackSpeed: number;
   layout: Layout;
   readerViewMode: ReaderViewMode;
+  pdfScale: number;
+  bionicReading: boolean;
+  settingsMenuOpen: boolean;
   activeBlockId: number | null;
   isPlaying: boolean;
   currentTime: number;
-
+  
   setTheme: (theme: Theme) => void;
   setFontSize: (size: number) => void;
   setFontFamily: (font: string) => void;
   setPlaybackSpeed: (speed: number) => void;
   setLayout: (layout: Layout) => void;
   setReaderViewMode: (mode: ReaderViewMode) => void;
+  setPdfScale: (scale: number) => void;
+  setBionicReading: (enabled: boolean) => void;
+  setSettingsMenuOpen: (open: boolean) => void;
   setActiveBlockId: (id: number | null) => void;
   setIsPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -33,6 +39,9 @@ const defaultState: ReaderState = {
   playbackSpeed: 1.0,
   layout: 'continuous',
   readerViewMode: 'text',
+  pdfScale: 1.0,
+  bionicReading: false,
+  settingsMenuOpen: false,
   activeBlockId: null,
   isPlaying: false,
   currentTime: 0,
@@ -42,6 +51,9 @@ const defaultState: ReaderState = {
   setPlaybackSpeed: () => {},
   setLayout: () => {},
   setReaderViewMode: () => {},
+  setPdfScale: () => {},
+  setBionicReading: () => {},
+  setSettingsMenuOpen: () => {},
   setActiveBlockId: () => {},
   setIsPlaying: () => {},
   setCurrentTime: () => {},
@@ -56,40 +68,50 @@ interface ProviderProps {
 }
 
 export const ReaderProvider: FC<ProviderProps> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem('reader_theme') as Theme) || 'dark'
+  // Initialize from localStorage or defaults
+  const [theme, setThemeState] = useState<Theme>(() => 
+    (localStorage.getItem('reader_theme') as Theme) || 'dark'
   );
-  const [fontSize, setFontSizeState] = useState<number>(
-    () => parseInt(localStorage.getItem('reader_fontSize') || '18', 10)
+  const [fontSize, setFontSizeState] = useState<number>(() => 
+    parseInt(localStorage.getItem('reader_fontSize') || '18', 10)
   );
-  const [fontFamily, setFontFamilyState] = useState<string>(
-    () => localStorage.getItem('reader_fontFamily') || 'Inter, sans-serif'
+  const [fontFamily, setFontFamilyState] = useState<string>(() => 
+    localStorage.getItem('reader_fontFamily') || 'Inter, sans-serif'
   );
-  const [playbackSpeed, setPlaybackSpeedState] = useState<number>(
-    () => parseFloat(localStorage.getItem('reader_playbackSpeed') || '1.0')
+  const [playbackSpeed, setPlaybackSpeedState] = useState<number>(() => 
+    parseFloat(localStorage.getItem('reader_playbackSpeed') || '1.0')
   );
-  const [layout, setLayoutState] = useState<Layout>(
-    () => (localStorage.getItem('reader_layout') as Layout) || 'continuous'
+  const [layout, setLayoutState] = useState<Layout>(() => 
+    (localStorage.getItem('reader_layout') as Layout) || 'continuous'
   );
   const [readerViewMode, setReaderViewModeState] = useState<ReaderViewMode>(() => {
     const saved = localStorage.getItem('reader_viewMode');
     return saved === 'text' || saved === 'original' ? saved : 'text';
   });
-
-  // Transient playback state
+  const [pdfScale, setPdfScaleState] = useState<number>(() =>
+    parseFloat(localStorage.getItem('reader_pdfScale') || '1.0')
+  );
+  const [bionicReading, setBionicReadingState] = useState<boolean>(() =>
+    localStorage.getItem('reader_bionicReading') === 'true'
+  );
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState<boolean>(false);
+  
+  // Transient state
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
 
-  // Persist reader prefs
+  // Persistence effects
   useEffect(() => { localStorage.setItem('reader_theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('reader_fontSize', fontSize.toString()); }, [fontSize]);
   useEffect(() => { localStorage.setItem('reader_fontFamily', fontFamily); }, [fontFamily]);
   useEffect(() => { localStorage.setItem('reader_playbackSpeed', playbackSpeed.toString()); }, [playbackSpeed]);
   useEffect(() => { localStorage.setItem('reader_layout', layout); }, [layout]);
   useEffect(() => { localStorage.setItem('reader_viewMode', readerViewMode); }, [readerViewMode]);
+  useEffect(() => { localStorage.setItem('reader_pdfScale', pdfScale.toString()); }, [pdfScale]);
+  useEffect(() => { localStorage.setItem('reader_bionicReading', bionicReading ? 'true' : 'false'); }, [bionicReading]);
 
-  // Apply theme class to body
+  // Apply theme to document body
   useEffect(() => {
     document.body.className = `theme-${theme}`;
   }, [theme]);
@@ -101,16 +123,22 @@ export const ReaderProvider: FC<ProviderProps> = ({ children }) => {
     playbackSpeed,
     layout,
     readerViewMode,
+    pdfScale,
+    bionicReading,
+    settingsMenuOpen,
     activeBlockId,
     isPlaying,
     currentTime,
-
+    
     setTheme: setThemeState,
     setFontSize: setFontSizeState,
     setFontFamily: setFontFamilyState,
     setPlaybackSpeed: setPlaybackSpeedState,
     setLayout: setLayoutState,
     setReaderViewMode: setReaderViewModeState,
+    setPdfScale: setPdfScaleState,
+    setBionicReading: setBionicReadingState,
+    setSettingsMenuOpen,
     setActiveBlockId,
     setIsPlaying,
     setCurrentTime,

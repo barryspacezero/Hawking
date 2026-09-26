@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
+from starlette.datastructures import UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import json
 import os
 import uuid
 import logging
@@ -9,6 +11,9 @@ import logging
 from database import get_db
 import models
 import schemas
+from document_parser import SUPPORTED_EXTENSIONS, normalize_extension, parse_document, supported_formats_message
+from upload_limits import MAX_MULTIPART_PART_SIZE, MAX_UPLOAD_BYTES
+from tts.job_queue import JobSubmitResult, tts_job_queue
 
 try:
     from tts.kokoro_service import KokoroService, AUDIO_DIR
@@ -29,8 +34,7 @@ router = APIRouter(
     tags=["documents"]
 )
 
-SUPPORTED_EXTENSIONS = {"pdf", "txt", "md"}
-MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+MAX_FILE_SIZE = MAX_UPLOAD_BYTES
 
 
 def _validate_folder_id(db: Session, folder_id: Optional[int]) -> None:
@@ -71,129 +75,321 @@ def _save_source_file(document_id: int, filename: str, content: bytes) -> str:
     return source_name
 
 
-def _parse_document(filename: str, content: bytes) -> tuple[list[dict], int | None]:
-    """Parse document and return (blocks, page_count)."""
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-
-    if ext == "pdf":
-        try:
-            import fitz  # PyMuPDF
-            doc = fitz.open(stream=content, filetype="pdf")
-            blocks = []
-            page_count = doc.page_count
-            for page_num, page in enumerate(doc, start=1):
-                text = page.get_text("text").strip()
-                if text:
-                    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-                    for para in paragraphs:
-                        if len(para) > 20:
-                            blocks.append({"text": para, "page_number": page_num})
-            doc.close()
-            return blocks, page_count
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"PDF parse error: {e}")
-
-    elif ext in ("txt", "md"):
-        text = content.decode("utf-8", errors="replace")
-        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-        blocks = [{"text": p, "page_number": None} for p in paragraphs if len(p) > 10]
-        return blocks, None
-
-    else:
-        raise HTTPException(status_code=415, detail=f"Unsupported file type: .{ext}")
+@router.get("/supported-formats")
+def get_supported_formats():
+    canonical = sorted({normalize_extension(f"file.{ext}") for ext in SUPPORTED_EXTENSIONS})
+    return {
+        "extensions": canonical,
+        "message": supported_formats_message(),
+    }
 
 
 @router.post("/upload", response_model=schemas.DocumentDetailSchema)
 async def upload_document(
-    file: UploadFile = File(...),
-    folder_id: Optional[int] = Form(None),
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No filename provided.")
+    try:
+        form = await request.form(max_part_size=MAX_MULTIPART_PART_SIZE)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read upload: {str(e)}")
 
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-    if ext not in SUPPORTED_EXTENSIONS:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Unsupported file type '.{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
-        )
+    file = form.get("file")
+    if file is None or not isinstance(file, UploadFile):
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    folder_id = None
+    folder_id_raw = form.get("folder_id")
+    if folder_id_raw not in (None, ""):
+        try:
+            folder_id = int(folder_id_raw)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid folder_id.")
 
     _validate_folder_id(db, folder_id)
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
 
+    ext = normalize_extension(file.filename)
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds 20 MB limit.")
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB.")
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="File is empty.")
 
-    raw_blocks, page_count = _parse_document(file.filename, content)
+    try:
+        parsed = parse_document(file.filename, content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
 
-    doc = models.Document(
+    blocks = [
+        {
+            "block_index": block.block_index,
+            "page_number": block.page_number,
+            "text": block.text,
+            "text_spans": block.text_spans,
+        }
+        for block in parsed.blocks
+    ]
+    page_count = parsed.page_count
+
+    db_doc = models.Document(
         filename=file.filename,
-        file_type=ext,
+        file_type=parsed.canonical_type,
         folder_id=folder_id,
         page_count=page_count,
     )
-    db.add(doc)
-    db.flush()
-
-    source_name = _save_source_file(doc.id, file.filename, content)
-    doc.source_path = source_name
-
-    for idx, blk in enumerate(raw_blocks):
-        db_block = models.DocumentBlock(
-            document_id=doc.id,
-            block_index=idx,
-            page_number=blk.get("page_number"),
-            text=blk["text"],
-            audio_status="none",
-        )
-        db.add(db_block)
-
+    db.add(db_doc)
     db.commit()
-    db.refresh(doc)
-    return doc
+    db.refresh(db_doc)
 
+    source_name = _save_source_file(db_doc.id, file.filename, content)
+    db_doc.source_path = source_name
+    db.commit()
+
+    db_blocks = []
+    for b in blocks:
+        db_block = models.DocumentBlock(
+            document_id=db_doc.id,
+            block_index=b["block_index"],
+            page_number=b["page_number"],
+            text=b["text"],
+            text_spans=b.get("text_spans"),
+        )
+        db_blocks.append(db_block)
+    
+    db.add_all(db_blocks)
+    db.commit()
+    db.refresh(db_doc)
+    db_doc.blocks.sort(key=lambda x: x.block_index)
+    
+    return db_doc
 
 @router.post("/text", response_model=schemas.DocumentDetailSchema)
-def create_from_text(request: schemas.TextInputRequest, db: Session = Depends(get_db)):
+async def upload_text(request: schemas.TextInputRequest, db: Session = Depends(get_db)):
+    if not request.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
     _validate_folder_id(db, request.folder_id)
-
-    title = (request.title or "Pasted Text").strip()[:200]
+    
+    blocks = []
     paragraphs = [p.strip() for p in request.text.split("\n\n") if p.strip()]
-    if not paragraphs:
-        raise HTTPException(status_code=400, detail="No readable text provided.")
-
-    doc = models.Document(
-        filename=title,
+    for idx, p in enumerate(paragraphs):
+        blocks.append({
+            "block_index": idx,
+            "page_number": None,
+            "text": p
+        })
+        
+    db_doc = models.Document(
+        filename=request.title or "Pasted Text",
         file_type="txt",
         folder_id=request.folder_id,
     )
-    db.add(doc)
-    db.flush()
-
-    for idx, para in enumerate(paragraphs):
-        db.add(models.DocumentBlock(
-            document_id=doc.id,
-            block_index=idx,
-            page_number=None,
-            text=para,
-            audio_status="none",
-        ))
-
+    db.add(db_doc)
     db.commit()
-    db.refresh(doc)
-    return doc
+    db.refresh(db_doc)
 
+    db_blocks = []
+    for b in blocks:
+        db_block = models.DocumentBlock(
+            document_id=db_doc.id,
+            block_index=b["block_index"],
+            page_number=b["page_number"],
+            text=b["text"]
+        )
+        db_blocks.append(db_block)
+    
+    db.add_all(db_blocks)
+    db.commit()
+    db.refresh(db_doc)
+    db_doc.blocks.sort(key=lambda x: x.block_index)
+    
+    return db_doc
 
-@router.get("/", response_model=List[schemas.DocumentSchema])
+@router.post("/link", response_model=schemas.DocumentDetailSchema)
+async def upload_link(request: schemas.LinkInputRequest, db: Session = Depends(get_db)):
+    if not request.url.strip():
+        raise HTTPException(status_code=400, detail="URL cannot be empty.")
+    _validate_folder_id(db, request.folder_id)
+        
+    from readability import Document as ReadabilityDocument
+    import bs4
+    import requests
+    
+    html = ""
+    try:
+        # Try Selenium for JS rendered pages (Bot Protection bypass attempt)
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+        from webdriver_manager.chrome import ChromeDriverManager
+        
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver.set_page_load_timeout(30)
+        driver.get(request.url)
+        html = driver.page_source
+        driver.quit()
+    except Exception as e:
+        logger.warning(f"Selenium failed, falling back to requests: {e}")
+        try:
+            # Fallback to requests
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            res = requests.get(request.url, headers=headers, timeout=15)
+            res.raise_for_status()
+            html = res.text
+        except Exception as req_e:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch webpage: {str(req_e)}")
+
+    try:
+        doc = ReadabilityDocument(html)
+        title = doc.title()
+        summary_html = doc.summary()
+        
+        soup = bs4.BeautifulSoup(summary_html, "html.parser")
+        clean_text = soup.get_text(separator="\n\n").strip()
+        
+        if not clean_text:
+            raise HTTPException(status_code=400, detail="Could not extract readable text from this URL.")
+            
+        blocks = []
+        paragraphs = [p.strip() for p in clean_text.split("\n\n") if p.strip()]
+        for idx, p in enumerate(paragraphs):
+            blocks.append({
+                "block_index": idx,
+                "page_number": None,
+                "text": p
+            })
+            
+        db_doc = models.Document(
+            filename=title or "Web Article",
+            file_type="txt",
+            folder_id=request.folder_id,
+        )
+        db.add(db_doc)
+        db.commit()
+        db.refresh(db_doc)
+
+        db_blocks = []
+        for b in blocks:
+            db_block = models.DocumentBlock(
+                document_id=db_doc.id,
+                block_index=b["block_index"],
+                page_number=b["page_number"],
+                text=b["text"]
+            )
+            db_blocks.append(db_block)
+        
+        db.add_all(db_blocks)
+        db.commit()
+        db.refresh(db_doc)
+        db_doc.blocks.sort(key=lambda x: x.block_index)
+        
+        return db_doc
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse webpage content: {str(e)}")
+
+@router.post("/cloud-import", response_model=schemas.DocumentDetailSchema)
+async def upload_cloud_mock(request: schemas.CloudImportRequest, db: Session = Depends(get_db)):
+    """Mock endpoint for Drive/Dropbox/OneDrive imports using dummy keys."""
+    if not request.file_id and not request.url:
+        raise HTTPException(status_code=400, detail="Missing file identifier.")
+    _validate_folder_id(db, request.folder_id)
+        
+    # Mocking the download process
+    text_content = f"This is a mocked import from {request.provider}.\n\nFile ID: {request.file_id or request.url}\n\nSince no real API keys were provided for {request.provider}, we've successfully imported this placeholder text to demonstrate the full end-to-end functionality!"
+    
+    blocks = []
+    paragraphs = [p.strip() for p in text_content.split("\n\n") if p.strip()]
+    for idx, p in enumerate(paragraphs):
+        blocks.append({
+            "block_index": idx,
+            "page_number": None,
+            "text": p
+        })
+        
+    db_doc = models.Document(
+        filename=request.filename or f"Imported from {request.provider}",
+        file_type="txt",
+        folder_id=request.folder_id,
+    )
+    db.add(db_doc)
+    db.commit()
+    db.refresh(db_doc)
+
+    db_blocks = []
+    for b in blocks:
+        db_block = models.DocumentBlock(
+            document_id=db_doc.id,
+            block_index=b["block_index"],
+            page_number=b["page_number"],
+            text=b["text"]
+        )
+        db_blocks.append(db_block)
+    
+    db.add_all(db_blocks)
+    db.commit()
+    db.refresh(db_doc)
+    db_doc.blocks.sort(key=lambda x: x.block_index)
+    
+    return db_doc
+
+@router.get("", response_model=List[schemas.DocumentSchema])
 def list_documents(
     folder_id: Optional[int] = Query(None),
+    root_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
-    q = db.query(models.Document)
-    if folder_id is not None:
-        q = q.filter(models.Document.folder_id == folder_id)
-    return q.order_by(models.Document.upload_date.desc()).all()
+    query = db.query(models.Document)
+    if root_only:
+        query = query.filter(models.Document.folder_id.is_(None))
+    elif folder_id is not None:
+        query = query.filter(models.Document.folder_id == folder_id)
+    return query.order_by(models.Document.upload_date.desc()).all()
+
+
+@router.post("/bulk-move", response_model=schemas.BulkActionResponse)
+def bulk_move_documents(request: schemas.BulkMoveRequest, db: Session = Depends(get_db)):
+    _validate_folder_id(db, request.folder_id)
+    docs = db.query(models.Document).filter(models.Document.id.in_(request.document_ids)).all()
+    if not docs:
+        raise HTTPException(status_code=404, detail="No matching documents found.")
+
+    for doc in docs:
+        doc.folder_id = request.folder_id
+    db.commit()
+    return schemas.BulkActionResponse(
+        affected=len(docs),
+        message=f"Moved {len(docs)} document(s).",
+    )
+
+
+@router.post("/bulk-delete", response_model=schemas.BulkActionResponse)
+def bulk_delete_documents(request: schemas.BulkDeleteRequest, db: Session = Depends(get_db)):
+    docs = db.query(models.Document).filter(models.Document.id.in_(request.document_ids)).all()
+    if not docs:
+        raise HTTPException(status_code=404, detail="No matching documents found.")
+
+    for doc in docs:
+        _delete_document_audio(doc)
+        _delete_document_source(doc)
+        db.delete(doc)
+    db.commit()
+    return schemas.BulkActionResponse(
+        affected=len(docs),
+        message=f"Deleted {len(docs)} document(s).",
+    )
 
 
 @router.get("/{document_id}", response_model=schemas.DocumentDetailSchema)
@@ -201,6 +397,7 @@ def get_document(document_id: int, db: Session = Depends(get_db)):
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    doc.blocks.sort(key=lambda x: x.block_index)
     return doc
 
 
@@ -230,6 +427,14 @@ def get_document_source(document_id: int, db: Session = Depends(get_db)):
         "pdf": "application/pdf",
         "txt": "text/plain; charset=utf-8",
         "md": "text/markdown; charset=utf-8",
+        "html": "text/html; charset=utf-8",
+        "csv": "text/csv; charset=utf-8",
+        "log": "text/plain; charset=utf-8",
+        "epub": "application/epub+zip",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "doc": "application/msword",
+        "rtf": "application/rtf",
+        "odt": "application/vnd.oasis.opendocument.text",
     }
     media_type = media_types.get(doc.file_type, "application/octet-stream")
     return FileResponse(
@@ -240,182 +445,126 @@ def get_document_source(document_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/bulk-move", response_model=schemas.BulkActionResponse)
-def bulk_move(request: schemas.BulkMoveRequest, db: Session = Depends(get_db)):
-    _validate_folder_id(db, request.folder_id)
-    docs = db.query(models.Document).filter(models.Document.id.in_(request.document_ids)).all()
-    for doc in docs:
-        doc.folder_id = request.folder_id
-    db.commit()
-    return {"affected": len(docs), "message": "Documents moved."}
+def _derive_document_status(blocks: list[models.DocumentBlock], queue_snapshot: dict) -> str:
+    statuses = [b.audio_status for b in blocks]
+    if not statuses:
+        return "not_started"
 
+    active_id = queue_snapshot.get("active_document_id")
+    doc_id = blocks[0].document_id if blocks else None
+    queued_ids = queue_snapshot.get("queued_document_ids", [])
 
-@router.post("/bulk-delete", response_model=schemas.BulkActionResponse)
-def bulk_delete(request: schemas.BulkDeleteRequest, db: Session = Depends(get_db)):
-    docs = db.query(models.Document).filter(models.Document.id.in_(request.document_ids)).all()
-    for doc in docs:
-        _delete_document_audio(doc)
-        _delete_document_source(doc)
-        db.delete(doc)
-    db.commit()
-    return {"affected": len(docs), "message": "Documents deleted."}
-
-
-# ── TTS Endpoints ──────────────────────────────────────────────────────────────
-
-def generate_audio_background_task(document_id: int, voice_tier: str):
-    """Background task: generate TTS audio for each block using Kokoro (or gTTS fallback)."""
-    from database import SessionLocal
-    import json
-
-    db = SessionLocal()
-
-    # Load faster-whisper for word-level timestamp alignment
-    try:
-        from faster_whisper import WhisperModel
-        whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
-        whisper_available = True
-        logger.info("faster-whisper loaded for alignment.")
-    except Exception as w_load_e:
-        logger.warning(f"faster-whisper not available: {w_load_e}")
-        whisper_model = None
-        whisper_available = False
-
-    try:
-        blocks = (
-            db.query(models.DocumentBlock)
-            .filter(
-                models.DocumentBlock.document_id == document_id,
-                models.DocumentBlock.audio_status != "done",
-            )
-            .order_by(models.DocumentBlock.block_index)
-            .all()
-        )
-
-        if not blocks:
-            return
-
-        tts_service = KokoroService.get_instance() if TTS_AVAILABLE else None
-
-        for block in blocks:
-            old_audio_path = block.audio_path
-            block.audio_status = "generating"
-            db.commit()
-
-            try:
-                safe_text = block.text[:1500]
-
-                if voice_tier == "gtts":
-                    from gtts import gTTS
-                    tts = gTTS(safe_text, lang="en")
-                    filename = f"block_{block.id}_{uuid.uuid4().hex[:8]}.mp3"
-                    filepath = os.path.join(AUDIO_DIR, filename)
-                    tts.save(filepath)
-                    block.audio_voice = "gtts_standard"
-
-                elif tts_service is not None:
-                    voice_map = {
-                        "kokoro_female_1": "af_heart",
-                        "kokoro_female_2": "af_bella",
-                        "kokoro_male_1": "am_michael",
-                        "kokoro_male_2": "am_adam",
-                    }
-                    voice_name = voice_map.get(voice_tier, "af_heart")
-                    wav_bytes = tts_service.synthesize(safe_text, voice=voice_name)
-                    filename = f"block_{block.id}_{uuid.uuid4().hex[:8]}.wav"
-                    filepath = os.path.join(AUDIO_DIR, filename)
-                    with open(filepath, "wb") as f:
-                        f.write(wav_bytes)
-                    block.audio_voice = voice_name
-
-                else:
-                    raise RuntimeError("No TTS engine available. Install kokoro-onnx or gTTS.")
-
-                # Word-level alignment via faster-whisper
-                words = []
-                if whisper_available and whisper_model is not None:
-                    try:
-                        segments, _ = whisper_model.transcribe(filepath, word_timestamps=True)
-                        for segment in segments:
-                            for word in segment.words:
-                                words.append({"word": word.word, "start": word.start, "end": word.end})
-                        block.word_timestamps = json.dumps(words)
-                    except Exception as w_e:
-                        logger.warning(f"Whisper alignment failed for block {block.id}: {w_e}")
-
-                if words:
-                    block.audio_duration = words[-1]["end"]
-                else:
-                    block.audio_duration = max(1.0, float(len(safe_text.split()) / 2.5))
-
-                block.audio_path = filename
-                block.audio_status = "done"
-                db.commit()
-
-                # Clean up old audio file if replaced
-                if old_audio_path and old_audio_path != filename:
-                    old_filepath = os.path.join(AUDIO_DIR, old_audio_path)
-                    if os.path.exists(old_filepath):
-                        try:
-                            os.remove(old_filepath)
-                        except OSError as rm_e:
-                            logger.warning(f"Failed to remove old audio {old_audio_path}: {rm_e}")
-
-            except Exception as e:
-                logger.error(f"Failed to generate audio for block {block.id}: {e}")
-                block.audio_status = "failed"
-                db.commit()
-
-    finally:
-        db.close()
+    if doc_id in queued_ids and active_id != doc_id:
+        return "queued"
+    if active_id == doc_id or "generating" in statuses or "pending" in statuses:
+        if all(s == "done" for s in statuses):
+            return "done"
+        if "generating" in statuses or "pending" in statuses:
+            return "processing"
+    if all(s == "done" for s in statuses):
+        return "done"
+    if any(s == "failed" for s in statuses) and not any(s in {"pending", "generating", "queued"} for s in statuses):
+        return "failed"
+    if any(s == "queued" for s in statuses):
+        return "queued"
+    if all(s == "none" for s in statuses):
+        return "not_started"
+    return "not_started"
 
 
 @router.post("/{document_id}/generate-audio")
-def generate_audio(
-    document_id: int,
-    request: schemas.AudioGenerationRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
+def generate_audio(document_id: int, request: schemas.AudioGenerationRequest, db: Session = Depends(get_db)):
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Mark all blocks as pending so they regenerate with the new voice
-    blocks = db.query(models.DocumentBlock).filter(
-        models.DocumentBlock.document_id == document_id
-    ).all()
-    for block in blocks:
-        block.audio_status = "pending"
-    db.commit()
+    blocks = (
+        db.query(models.DocumentBlock)
+        .filter(models.DocumentBlock.document_id == document_id)
+        .order_by(models.DocumentBlock.block_index)
+        .all()
+    )
+    if not blocks:
+        raise HTTPException(status_code=400, detail="Document has no text blocks to synthesize.")
 
-    background_tasks.add_task(generate_audio_background_task, document_id, request.voice_tier)
-    return {"message": f"Audio generation started with voice: {request.voice_tier}"}
+    all_done = all(block.audio_status == "done" for block in blocks)
+    result, queue_position = tts_job_queue.submit(
+        document_id,
+        request.voice_tier,
+        force=request.force,
+        all_blocks_done=all_done,
+    )
+
+    if result == JobSubmitResult.ALREADY_DONE:
+        snapshot = tts_job_queue.get_snapshot(document_id)
+        return {
+            "message": "Audio already generated for this document.",
+            "document_status": "done",
+            "queue_position": None,
+            "active_document_id": snapshot["active_document_id"],
+        }
+
+    if result in {JobSubmitResult.ALREADY_QUEUED, JobSubmitResult.ALREADY_PROCESSING}:
+        snapshot = tts_job_queue.get_snapshot(document_id)
+        document_status = "processing" if result == JobSubmitResult.ALREADY_PROCESSING else "queued"
+        return {
+            "message": f"Document is already {document_status}.",
+            "document_status": document_status,
+            "queue_position": snapshot.get("queue_position"),
+            "active_document_id": snapshot["active_document_id"],
+        }
+
+    if request.force or not all_done:
+        next_status = "queued" if result == JobSubmitResult.QUEUED else "pending"
+        for block in blocks:
+            block.audio_status = next_status
+        db.commit()
+
+    snapshot = tts_job_queue.get_snapshot(document_id)
+    document_status = "queued" if result == JobSubmitResult.QUEUED else "processing"
+    return {
+        "message": f"Audio generation {'queued' if result == JobSubmitResult.QUEUED else 'started'} with {request.voice_tier}",
+        "document_status": document_status,
+        "queue_position": queue_position,
+        "active_document_id": snapshot["active_document_id"],
+    }
 
 
-@router.get("/{document_id}/audio-status")
+@router.get("/{document_id}/audio-status", response_model=schemas.AudioStatusResponse)
 def get_audio_status(document_id: int, db: Session = Depends(get_db)):
-    blocks = db.query(models.DocumentBlock).filter(
-        models.DocumentBlock.document_id == document_id
-    ).all()
-    status_map = {b.id: b.audio_status for b in blocks}
-    return {"status": status_map}
+    blocks = (
+        db.query(models.DocumentBlock)
+        .filter(models.DocumentBlock.document_id == document_id)
+        .order_by(models.DocumentBlock.block_index)
+        .all()
+    )
+    if not blocks:
+        raise HTTPException(status_code=404, detail="Document not found")
 
+    snapshot = tts_job_queue.get_snapshot(document_id)
+    status_map = {b.id: b.audio_status for b in blocks}
+    document_status = _derive_document_status(blocks, snapshot)
+
+    return schemas.AudioStatusResponse(
+        document_status=document_status,
+        queue_position=snapshot.get("queue_position"),
+        active_document_id=snapshot.get("active_document_id"),
+        status=status_map,
+    )
 
 @router.get("/{document_id}/blocks/{block_id}/audio")
 def get_block_audio(document_id: int, block_id: int, db: Session = Depends(get_db)):
     block = db.query(models.DocumentBlock).filter(
-        models.DocumentBlock.id == block_id,
-        models.DocumentBlock.document_id == document_id,
+        models.DocumentBlock.id == block_id, 
+        models.DocumentBlock.document_id == document_id
     ).first()
-
     if not block or not block.audio_path:
         raise HTTPException(status_code=404, detail="Audio not found")
-
+        
     filepath = os.path.join(AUDIO_DIR, block.audio_path)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="Audio file missing on disk")
-
+        
     media_type = "audio/mpeg" if filepath.endswith(".mp3") else "audio/wav"
     ext = "mp3" if filepath.endswith(".mp3") else "wav"
     return FileResponse(

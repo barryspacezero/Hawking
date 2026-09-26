@@ -1,7 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, Upload, Loader2, Square, Zap, Download } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Mic, Upload, Loader2, Square, Zap, Download, Save, AudioLines } from 'lucide-react';
 import { base64ToArrayBuffer, mergeWavBuffers, downloadWav } from '../utils/wavUtils';
 import { API_URL } from '../config/api';
+import {
+  createVoiceProfile,
+  fetchVoiceProfiles,
+  type VoiceProfile,
+} from '../api/voiceProfiles';
 
 const MAX_TEXT_LENGTH = 5000;
 
@@ -14,6 +20,8 @@ interface StreamMetrics {
 }
 
 export default function VoiceClone() {
+  const [profiles, setProfiles] = useState<VoiceProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | ''>('');
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [text, setText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -23,12 +31,25 @@ export default function VoiceClone() {
   const [ttfaDisplay, setTtfaDisplay] = useState<number | null>(null);
   const [status, setStatus] = useState('');
   const [recordedAudio, setRecordedAudio] = useState<ArrayBuffer | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [saveNotice, setSaveNotice] = useState('');
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wavChunksRef = useRef<ArrayBuffer[]>([]);
+
+  const usingSavedProfile = selectedProfileId !== '';
+  const canUseReference = usingSavedProfile || Boolean(referenceFile);
+
+  useEffect(() => {
+    fetchVoiceProfiles()
+      .then(setProfiles)
+      .catch(() => {});
+  }, []);
 
   const stopPlayback = useCallback(() => {
     abortRef.current?.abort();
@@ -79,9 +100,47 @@ export default function VoiceClone() {
     }
   }, []);
 
+  const buildFormData = () => {
+    const formData = new FormData();
+    formData.append('text', text);
+    if (usingSavedProfile) {
+      formData.append('profile_id', String(selectedProfileId));
+    } else if (referenceFile) {
+      formData.append('reference_audio', referenceFile);
+    }
+    return formData;
+  };
+
+  const maybeOfferSave = () => {
+    if (!usingSavedProfile && referenceFile) {
+      const nextIndex = profiles.length + 1;
+      setSaveName(`Voice ${nextIndex}`);
+      setShowSaveModal(true);
+      setSaveNotice('');
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!referenceFile) return;
+    setSavingProfile(true);
+    setSaveNotice('');
+    try {
+      const profile = await createVoiceProfile(referenceFile, saveName.trim() || undefined);
+      setProfiles((prev) => [profile, ...prev]);
+      setSelectedProfileId(profile.id);
+      setReferenceFile(null);
+      setShowSaveModal(false);
+      setSaveNotice(`Saved as "${profile.name}".`);
+    } catch (err) {
+      setSaveNotice(err instanceof Error ? err.message : 'Failed to save voice');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const handleStream = async () => {
-    if (!referenceFile || !text.trim()) {
-      setError('Please upload a reference audio clip and enter text.');
+    if (!canUseReference || !text.trim()) {
+      setError('Select a saved voice or upload a reference clip, then enter text.');
       return;
     }
     if (text.length > MAX_TEXT_LENGTH) {
@@ -98,10 +157,7 @@ export default function VoiceClone() {
     setIsStreaming(true);
     setStatus('Preparing...');
 
-    const formData = new FormData();
-    formData.append('text', text);
-    formData.append('reference_audio', referenceFile);
-
+    const formData = buildFormData();
     const abort = new AbortController();
     abortRef.current = abort;
     const startTime = performance.now();
@@ -159,15 +215,17 @@ export default function VoiceClone() {
           } else if (event.type === 'done') {
             setStatus('Complete');
             finalizeRecordedAudio();
+            maybeOfferSave();
           }
         }
       }
 
       if (wavChunksRef.current.length > 0) {
         finalizeRecordedAudio();
+        maybeOfferSave();
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
         setError(err.message);
         setStatus('');
       }
@@ -183,8 +241,8 @@ export default function VoiceClone() {
       return;
     }
 
-    if (!referenceFile || !text.trim()) {
-      setError('Please upload a reference audio clip and enter text.');
+    if (!canUseReference || !text.trim()) {
+      setError('Select a saved voice or upload a reference clip, then enter text.');
       return;
     }
     if (text.length > MAX_TEXT_LENGTH) {
@@ -195,14 +253,10 @@ export default function VoiceClone() {
     setIsDownloading(true);
     setError('');
 
-    const formData = new FormData();
-    formData.append('text', text);
-    formData.append('reference_audio', referenceFile);
-
     try {
       const res = await fetch(`${API_URL}/voice-clone/synthesize`, {
         method: 'POST',
-        body: formData,
+        body: buildFormData(),
       });
 
       if (!res.ok) {
@@ -224,24 +278,37 @@ export default function VoiceClone() {
       const buffer = await blob.arrayBuffer();
       setRecordedAudio(buffer);
       wavChunksRef.current = [buffer];
-    } catch (err: any) {
-      setError(err.message);
+      maybeOfferSave();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Download failed');
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const canGenerate = Boolean(referenceFile && text.trim() && text.length <= MAX_TEXT_LENGTH);
+  const canGenerate = canUseReference && Boolean(text.trim()) && text.length <= MAX_TEXT_LENGTH;
   const canDownload = Boolean(recordedAudio) && !isStreaming && !isDownloading;
 
   return (
     <div className="p-8 md:p-12 max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Voice Clone Studio</h1>
-        <p className="text-gray-400 text-sm">
-          Upload a short voice sample, enter text, and hear it spoken in that voice — streamed in real time.
-        </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-2">Voice Clone Studio</h1>
+          <p className="text-gray-400 text-sm">
+            Use a saved voice from your library or upload a new sample, then hear text spoken in that voice.
+          </p>
+        </div>
+        <Link to="/voice-library" className="flex items-center gap-1 text-sm text-brand hover:text-brand-hover transition">
+          <AudioLines className="w-4 h-4" />
+          Voice Library
+        </Link>
       </div>
+
+      {saveNotice && !showSaveModal && (
+        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-sm">
+          {saveNotice}
+        </div>
+      )}
 
       {(ttfaDisplay !== null || metrics) && (
         <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -277,37 +344,63 @@ export default function VoiceClone() {
       )}
 
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-300 mb-2">Reference Voice (3–30 seconds)</label>
-        <div
-          className="bg-cardBg rounded-2xl border border-dashed border-white/10 p-6 text-center cursor-pointer hover:border-brand/50 transition"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={(e) => {
-              setReferenceFile(e.target.files?.[0] || null);
+        <label className="block text-sm font-medium text-gray-300 mb-2">Saved voice</label>
+        <select
+          value={selectedProfileId}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSelectedProfileId(value ? Number(value) : '');
+            if (value) {
+              setReferenceFile(null);
               setError('');
-              setRecordedAudio(null);
-              wavChunksRef.current = [];
-            }}
-          />
-          {referenceFile ? (
-            <div className="flex items-center justify-center space-x-2 text-gray-200">
-              <Mic className="w-5 h-5 text-brand" />
-              <span className="text-sm">{referenceFile.name}</span>
-              <span className="text-xs text-gray-500">({(referenceFile.size / 1024).toFixed(0)} KB)</span>
-            </div>
-          ) : (
-            <div>
-              <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Click to upload a voice sample (WAV, MP3, OGG)</p>
-            </div>
-          )}
-        </div>
+            }
+          }}
+          className="w-full bg-cardBg border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand"
+        >
+          <option value="">Upload a new sample below</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name}
+            </option>
+          ))}
+        </select>
       </div>
+
+      {!usingSavedProfile && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Reference Voice (3–30 seconds)</label>
+          <div
+            className="bg-cardBg rounded-2xl border border-dashed border-white/10 p-6 text-center cursor-pointer hover:border-brand/50 transition"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => {
+                setReferenceFile(e.target.files?.[0] || null);
+                setSelectedProfileId('');
+                setError('');
+                setRecordedAudio(null);
+                wavChunksRef.current = [];
+              }}
+            />
+            {referenceFile ? (
+              <div className="flex items-center justify-center space-x-2 text-gray-200">
+                <Mic className="w-5 h-5 text-brand" />
+                <span className="text-sm">{referenceFile.name}</span>
+                <span className="text-xs text-gray-500">({(referenceFile.size / 1024).toFixed(0)} KB)</span>
+              </div>
+            ) : (
+              <div>
+                <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">Click to upload a voice sample (WAV, MP3, OGG)</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-300 mb-2">Text to Speak</label>
@@ -375,15 +468,54 @@ export default function VoiceClone() {
           </button>
         )}
 
-        {status && (
-          <span className="text-sm text-gray-400">{status}</span>
-        )}
+        {status && <span className="text-sm text-gray-400">{status}</span>}
       </div>
 
       <div className="mt-8 p-4 bg-cardBg rounded-xl border border-white/5 text-xs text-gray-500 space-y-1">
-        <p><strong className="text-gray-400">How it works:</strong> Your reference audio is analyzed to extract speaker characteristics. Text is split into sentence chunks and synthesized incrementally — audio begins playing as soon as the first chunk is ready.</p>
-        <p>After streaming completes, use <strong className="text-gray-400">Download Audio</strong> to save the full recording. You can also use <strong className="text-gray-400">Generate &amp; Download</strong> to create a file without streaming.</p>
+        <p>
+          <strong className="text-gray-400">Saved voices</strong> live in your Voice Library and can be reused without re-uploading.
+          After cloning with a new sample, you can name and save it for next time.
+        </p>
+        <p>
+          Deleting a saved voice only blocks future generations — audio you already created keeps working.
+        </p>
       </div>
+
+      {showSaveModal && referenceFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-cardBg border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-semibold text-white mb-2">Save this voice?</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Name your cloned voice so you can reuse it from the Voice Library.
+            </p>
+            <input
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="Voice 1"
+              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-brand"
+            />
+            {saveNotice && (
+              <p className="text-sm text-red-400 mb-3">{saveNotice}</p>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="px-4 py-2 rounded-lg text-gray-300 hover:bg-white/10 transition"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-hover disabled:opacity-50 transition"
+              >
+                {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save voice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

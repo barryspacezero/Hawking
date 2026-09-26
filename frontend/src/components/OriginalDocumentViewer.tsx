@@ -3,8 +3,7 @@ import { FileText, AlertCircle } from 'lucide-react';
 import PdfDocumentViewer from './PdfDocumentViewer';
 import type { ReaderBlock } from './TextViewReader';
 import { TEXT_PREVIEW_FILE_TYPES } from '../constants/uploads';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_URL } from '../config/api';
 
 interface OriginalDocumentViewerProps {
   documentId: number;

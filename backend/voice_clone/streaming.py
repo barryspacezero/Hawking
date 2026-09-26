@@ -27,6 +27,7 @@ def stream_synthesize(
     text: str,
     reference_audio_path: str,
     chunk_max_chars: int = 100,
+    conditioning_path: str | None = None,
 ) -> Generator[tuple[AudioChunk, StreamMetrics], None, None]:
     """
     Stream voice-cloned audio in sentence chunks.
@@ -34,7 +35,7 @@ def stream_synthesize(
     stitches playback. Use concatenate_chunks() for a seamless full file.
     """
     service = VoiceCloneService.get_instance()
-    service.prepare_speaker(reference_audio_path)
+    service.prepare_speaker(reference_audio_path, conditioning_path=conditioning_path)
 
     chunks = split_into_chunks(text, max_chars=chunk_max_chars)
     if not chunks:

@@ -1,6 +1,8 @@
 import { Play } from 'lucide-react';
 import { useReader } from '../context/ReaderContext';
+import { useBionicReading } from '../hooks/useBionicReading';
 import { buildTextTokens, type WordTimestamp } from '../utils/textHighlight';
+import { BionicPlainText } from '../utils/bionicTextRender';
 
 export interface ReaderBlock {
   id: number;
@@ -9,6 +11,7 @@ export interface ReaderBlock {
   text: string;
   audio_status: string;
   word_timestamps: string | null;
+  text_spans?: string | null;
 }
 
 interface TextViewReaderProps {
@@ -18,6 +21,7 @@ interface TextViewReaderProps {
 
 export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderProps) {
   const { fontSize, fontFamily, layout, activeBlockId, currentTime } = useReader();
+  const { enabled: bionicReading } = useBionicReading();
 
   return (
     <div
@@ -44,7 +48,11 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
             const isPlayable = block.audio_status === 'done';
             const isActive = activeBlockId === block.id;
 
-            let content = <p className="whitespace-pre-wrap">{block.text}</p>;
+            let content = (
+              <p className="whitespace-pre-wrap">
+                <BionicPlainText text={block.text} enabled={bionicReading} />
+              </p>
+            );
 
             if (isActive && block.word_timestamps) {
               try {
@@ -72,7 +80,7 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
                   </p>
                 );
               } catch {
-                // fallback to plain text on parse error
+                // fallback to plain text
               }
             }
 
@@ -102,7 +110,6 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
                     backgroundColor: isActive ? 'var(--reader-highlight)' : 'transparent',
                     fontSize: `${fontSize}px`,
                     lineHeight: '1.6',
-                    color: 'var(--reader-text)',
                   }}
                 >
                   {block.page_number && (

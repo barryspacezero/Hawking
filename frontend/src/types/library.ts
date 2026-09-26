@@ -4,7 +4,6 @@ export interface DocumentItem {
   file_type: string;
   folder_id: number | null;
   upload_date: string;
-  page_count?: number | null;
 }
 
 export interface FolderItem {

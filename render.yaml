@@ -9,13 +9,13 @@ services:
       - key: PORT
         value: 8000
       - key: FRONTEND_URL
-        value: "https://hawking-frontend.onrender.com"
+        value: "https://hawking-frontend.onrender.com" # Update this to the actual frontend URL later
     disk:
       name: hawking-data
       mountPath: /app/backend/data
       sizeGB: 1
 
-  # Frontend Vite/React Static Site
+  # Frontend Vite Service
   - type: web
     name: hawking-frontend
     env: static

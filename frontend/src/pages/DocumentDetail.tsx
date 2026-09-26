@@ -1,16 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Clock } from 'lucide-react';
 import { useReader } from '../context/ReaderContext';
-import ReaderSettingsMenu from '../components/ReaderSettingsMenu';
+import { ReaderSettingsTrigger } from '../components/ReaderSettingsMenu';
 import ReaderViewToggle from '../components/ReaderViewToggle';
 import AudioPlayer from '../components/AudioPlayer';
 import VoiceSwitcherModal from '../components/VoiceSwitcherModal';
 import OriginalDocumentViewer from '../components/OriginalDocumentViewer';
 import TextViewReader from '../components/TextViewReader';
+import { API_URL } from '../config/api';
 import ErrorBoundary from '../components/ErrorBoundary';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface DocumentBlock {
   id: number;
@@ -42,6 +41,9 @@ export default function DocumentDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [documentAudioStatus, setDocumentAudioStatus] = useState<string>('not_started');
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const [activeDocumentId, setActiveDocumentId] = useState<number | null>(null);
   const [voiceTier, setVoiceTier] = useState<string>('kokoro_female_1');
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const pollIntervalRef = useRef<number | null>(null);
@@ -61,7 +63,8 @@ export default function DocumentDetail() {
       const data = await res.json();
       setDoc(data);
       const generating = data.blocks.some(
-        (b: DocumentBlock) => b.audio_status === 'generating' || b.audio_status === 'pending',
+        (b: DocumentBlock) =>
+          ['generating', 'pending', 'queued'].includes(b.audio_status),
       );
       setIsGenerating(generating);
     } catch (err: any) {
@@ -99,16 +102,40 @@ export default function DocumentDetail() {
     };
   }, [setIsPlaying, setActiveBlockId]);
 
+  const pollGenerationProgress = async () => {
+    if (!id) return;
+    try {
+      const statusRes = await fetch(`${API_URL}/documents/${id}/audio-status`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setDocumentAudioStatus(statusData.document_status);
+        setQueuePosition(statusData.queue_position ?? null);
+        setActiveDocumentId(statusData.active_document_id ?? null);
+        setIsGenerating(['queued', 'processing'].includes(statusData.document_status));
+      }
+
+      // Refresh full block metadata (audio_path, timestamps, duration) on every poll.
+      // Status-only polling was a regression: playback needs stable block data while
+      // generation continues, matching pre-queue fetchDoc behavior.
+      const docRes = await fetch(`${API_URL}/documents/${id}`);
+      if (!docRes.ok) return;
+      const data = await docRes.json();
+      setDoc(data);
+    } catch (pollError) {
+      console.error('Failed to poll generation progress', pollError);
+    }
+  };
+
   useEffect(() => {
     if (isGenerating) {
-      pollIntervalRef.current = window.setInterval(fetchDoc, 3000);
+      pollIntervalRef.current = window.setInterval(pollGenerationProgress, 3000);
     } else if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
     }
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [isGenerating]);
+  }, [isGenerating, id]);
 
   useEffect(() => {
     if (readerViewMode !== 'text' || !activeBlockId) return;
@@ -129,8 +156,12 @@ export default function DocumentDetail() {
         body: JSON.stringify({ voice_tier: tier }),
       });
       if (!res.ok) throw new Error('Failed to start audio generation');
-      setIsGenerating(true);
-      fetchDoc();
+      const data = await res.json();
+      setDocumentAudioStatus(data.document_status ?? 'processing');
+      setQueuePosition(data.queue_position ?? null);
+      setActiveDocumentId(data.active_document_id ?? null);
+      setIsGenerating(['queued', 'processing'].includes(data.document_status ?? 'processing'));
+      void pollGenerationProgress();
     } catch (err: any) {
       alert(err.message);
     }
@@ -190,7 +221,7 @@ export default function DocumentDetail() {
 
         <div className="flex items-center space-x-2 shrink-0">
           <ReaderViewToggle hasOriginalSource={hasOriginalSource} />
-          <ReaderSettingsMenu />
+          <ReaderSettingsTrigger />
         </div>
       </div>
 
@@ -205,7 +236,15 @@ export default function DocumentDetail() {
                 Voice Generation
               </span>
               <p className="text-xs opacity-60 mt-1" style={{ color: 'var(--reader-text)' }}>
-                Generate audio to unlock read-along playback.
+                {documentAudioStatus === 'queued'
+                  ? queuePosition
+                    ? `Queued (position ${queuePosition}). Waiting for document #${activeDocumentId ?? '…'} to finish.`
+                    : 'Queued — waiting for another document to finish generating.'
+                  : documentAudioStatus === 'processing'
+                    ? 'Generating audio for this document.'
+                    : documentAudioStatus === 'failed'
+                      ? 'Some blocks failed. Try generating again.'
+                      : 'Generate audio to unlock read-along playback.'}
               </p>
             </div>
             <div className="flex items-center space-x-3 w-full sm:w-auto">
@@ -230,10 +269,17 @@ export default function DocumentDetail() {
                 }`}
               >
                 {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>({doneBlocks}/{totalBlocks})</span>
-                  </>
+                  documentAudioStatus === 'queued' ? (
+                    <>
+                      <Clock className="w-4 h-4" />
+                      <span>Queued{queuePosition ? ` #${queuePosition}` : ''}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>({doneBlocks}/{totalBlocks})</span>
+                    </>
+                  )
                 ) : (
                   <span>Generate</span>
                 )}

@@ -1,17 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 import os
+import logging
+from dotenv import load_dotenv
 
-from database import engine, Base
-import models  # noqa: F401
+from database import engine, Base, run_migrations
+import models
+from routers import folders
+from tts.audio_generation import generate_audio_for_document
+from tts.job_queue import tts_job_queue
 
 load_dotenv()
+
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
-app = FastAPI(title="Hawking API", version="0.2.0")
+logger = logging.getLogger(__name__)
 
-origins = os.getenv("FRONTEND_URL", "http://localhost:5173").split(",")
+app = FastAPI(title="Hawking API")
+
+tts_job_queue.configure(generate_audio_for_document)
+
+# Configure CORS — allow both localhost and 127.0.0.1 during local dev
+default_origins = "http://localhost:5173,http://127.0.0.1:5173"
+origins = [origin.strip() for origin in os.getenv("FRONTEND_URL", default_origins).split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -20,12 +33,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from routers import folders, documents  # noqa: E402
-
+# Core routers (always available)
 app.include_router(folders.router)
-app.include_router(documents.router)
 
+# Documents router (requires PyMuPDF — part of slim install)
+try:
+    from routers import documents
+    app.include_router(documents.router)
+except ImportError as e:
+    logger.warning(f"Documents router unavailable (missing dep): {e}")
+
+# Voice clone router (requires torch, chatterbox — heavy ML deps)
+try:
+    from routers import voice_clone, voice_profiles
+    app.include_router(voice_clone.router)
+    app.include_router(voice_profiles.router)
+except ImportError as e:
+    logger.warning(f"Voice clone router unavailable (missing dep): {e}")
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "healthy"}

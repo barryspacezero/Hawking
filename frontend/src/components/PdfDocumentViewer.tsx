@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useReader } from '../context/ReaderContext';
+import { API_URL } from '../config/api';
 import {
   getActivePdfHighlights,
   pdfSpanToPercent,
@@ -11,8 +12,7 @@ import {
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
+// Legacy worker includes Map/WeakMap polyfills (e.g. getOrInsertComputed) required by pdf.js 6.x
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
   import.meta.url,

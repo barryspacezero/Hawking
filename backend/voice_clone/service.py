@@ -26,6 +26,7 @@ class VoiceCloneService:
         self._model = None
         self._device = "cpu"
         self._conditionals_cache: dict[str, str] = {}
+        self._active_cache_key: str | None = None
 
     @classmethod
     def get_instance(cls) -> "VoiceCloneService":
@@ -58,25 +59,55 @@ class VoiceCloneService:
         with open(reference_audio_path, "rb") as f:
             return hashlib.md5(f.read()).hexdigest()
 
-    def prepare_speaker(self, reference_audio_path: str) -> None:
-        """Cache speaker conditioning for a reference clip."""
+    def prepare_speaker(
+        self,
+        reference_audio_path: str,
+        conditioning_path: str | None = None,
+    ) -> str | None:
+        """Prepare speaker conditionals, optionally loading/saving a disk cache."""
         self.validate_reference_audio(reference_audio_path)
         key = self._cache_key(reference_audio_path)
-        if key in self._conditionals_cache:
-            return
+        if self._active_cache_key == key:
+            return conditioning_path if conditioning_path and os.path.exists(conditioning_path) else None
+
         model = self.load_model()
+        if conditioning_path and os.path.exists(conditioning_path):
+            try:
+                loaded = torch.load(conditioning_path, map_location=self._device)
+                model.conds = loaded
+                self._active_cache_key = key
+                self._conditionals_cache[key] = reference_audio_path
+                return conditioning_path
+            except Exception as exc:
+                logger.warning("Failed to load cached conditionals from %s: %s", conditioning_path, exc)
+
         model.prepare_conditionals(reference_audio_path)
+        self._active_cache_key = key
         self._conditionals_cache[key] = reference_audio_path
 
-    def clone_and_synthesize(self, text: str, reference_audio_path: str) -> tuple[np.ndarray, int]:
+        if conditioning_path:
+            try:
+                os.makedirs(os.path.dirname(conditioning_path), exist_ok=True)
+                torch.save(model.conds, conditioning_path)
+                return conditioning_path
+            except Exception as exc:
+                logger.warning("Failed to save conditionals cache to %s: %s", conditioning_path, exc)
+        return None
+
+    def clone_and_synthesize(
+        self,
+        text: str,
+        reference_audio_path: str,
+        conditioning_path: str | None = None,
+    ) -> tuple[np.ndarray, int]:
         """Full-file voice-cloned synthesis. Returns (waveform, sample_rate)."""
         if not text.strip():
             raise ValueError("Text cannot be empty.")
 
-        self.prepare_speaker(reference_audio_path)
+        self.prepare_speaker(reference_audio_path, conditioning_path=conditioning_path)
         model = self.load_model()
 
-        wav_tensor = model.generate(text, audio_prompt_path=reference_audio_path)
+        wav_tensor = model.generate(text)
         waveform = wav_tensor.squeeze().numpy()
         return waveform, model.sr
 
