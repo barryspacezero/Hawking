@@ -4,20 +4,14 @@ from dotenv import load_dotenv
 import os
 
 from database import engine, Base
-import models  # noqa: F401 — ensure models are registered before create_all
+import models  # noqa: F401
 
 load_dotenv()
-
-# Create database tables on startup
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Hawking API", version="0.1.0")
+app = FastAPI(title="Hawking API", version="0.2.0")
 
-# ---------------------------------------------------------------------------
-# CORS
-# ---------------------------------------------------------------------------
 origins = os.getenv("FRONTEND_URL", "http://localhost:5173").split(",")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -26,17 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Routers — added incrementally as features are built
-# ---------------------------------------------------------------------------
-from routers import folders  # noqa: E402
+from routers import folders, documents  # noqa: E402
 
 app.include_router(folders.router)
+app.include_router(documents.router)
 
 
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
 @app.get("/health")
 def health_check():
     return {"status": "ok"}

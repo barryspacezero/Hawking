@@ -27,6 +27,12 @@ class FolderSchema(BaseModel):
 # Document
 # ---------------------------------------------------------------------------
 
+class TextInputRequest(BaseModel):
+    title: Optional[str] = None
+    text: str
+    folder_id: Optional[int] = None
+
+
 class DocumentSchema(BaseModel):
     id: int
     filename: str
@@ -58,7 +64,7 @@ class DocumentDetailSchema(DocumentSchema):
 
 
 # ---------------------------------------------------------------------------
-# Misc
+# Bulk ops
 # ---------------------------------------------------------------------------
 
 class BulkMoveRequest(BaseModel):
