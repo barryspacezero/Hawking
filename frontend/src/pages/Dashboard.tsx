@@ -155,11 +155,7 @@ export default function Dashboard() {
                 className="bg-cardBg  hover:bg-cardHover rounded-none p-6 flex flex-col items-center justify-center space-y-4 border border-borderDark transition group"
                 onClick={() => handleCardClick(card.name)}
               >
-                <div className="w-12 h-12 flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill={card.color} xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 opacity-90 group-hover:opacity-100 transition">
-                    <path d={card.icon} />
-                  </svg>
-                </div>
+                <div className="w-12 h-12 flex items-center justify-center opacity-80 group-hover:opacity-100 transition">{card.icon}</div>
                 <span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{card.name}</span>
               </button>
             ))}
@@ -174,6 +170,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
