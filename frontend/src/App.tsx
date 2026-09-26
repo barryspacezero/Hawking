@@ -12,6 +12,7 @@ import DocumentDetail from './pages/DocumentDetail';
 import VoiceClone from './pages/VoiceClone';
 import VoiceLibrary from './pages/VoiceLibrary';
 import Auth from './pages/Auth';
+import Landing from './pages/Landing';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <LibraryProvider>
           <ReaderSettingsMenu />
           <Routes>
+            <Route path="/landing" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
 
             <Route
@@ -49,4 +51,5 @@ function App() {
 }
 
 export default App;
+
 

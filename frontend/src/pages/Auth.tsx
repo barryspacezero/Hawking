@@ -17,6 +17,19 @@ export default function Auth() {
     return <Navigate to="/" replace />;
   }
 
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: 'guest@hawking.com', password: 'guestpassword' });
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message || 'Failed to login as guest. (Ensure guest@hawking.com exists)');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -118,9 +131,7 @@ export default function Auth() {
                 'Create Account'
               )}
             </button>
-          </form>
-          
-          <div className="mt-6 text-center">
+          </form>          <div className="mt-6 text-center">
             <button
               type="button"
               onClick={() => {
@@ -133,9 +144,20 @@ export default function Auth() {
               {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
           </div>
+          
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-none text-sm font-semibold text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-300"
+            >
+              Login as Guest (For Judges)
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
 
