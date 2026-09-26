@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Mail, Lock, Loader2, PlayCircle } from 'lucide-react';
 import { supabase } from '../utils/supabase';
@@ -101,7 +101,7 @@ export default function Auth() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-11 pr-4 py-3.5 bg-black/20 border border-white/10 rounded-none text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 />
               </div>
             </div>
@@ -159,5 +159,6 @@ export default function Auth() {
     </div>
   );
 }
+
 
 

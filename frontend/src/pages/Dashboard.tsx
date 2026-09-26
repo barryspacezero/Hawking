@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Type, Link as LinkIcon, BookOpen, Headphones, FileText, Clock, ChevronRight } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import PasteTextModal from '../components/PasteTextModal';
@@ -148,3 +148,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

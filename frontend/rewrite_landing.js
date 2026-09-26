@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+﻿const fs = require("fs");
+const path = "C:\\Projects\\Speechify-clone-anuj\\Hawking\\frontend\\src\\pages\\Landing.tsx";
+const content = `import { Link } from 'react-router-dom';
 import { Play, Headphones, Brain, Eye, Sparkles } from 'lucide-react';
 import AsciiBackground from '../components/AsciiBackground';
 
@@ -233,4 +235,6 @@ export default function Landing() {
       </main>
     </div>
   );
-}
+}`;
+fs.writeFileSync(path, content, { encoding: "utf8" });
+console.log("Written completely clean Landing.tsx!");

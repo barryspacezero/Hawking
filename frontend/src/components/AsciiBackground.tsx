@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 
 const PAIRS = [
   ['[', ']'],
@@ -68,3 +68,4 @@ export default function AsciiBackground() {
     </div>
   );
 }
+

@@ -1,4 +1,8 @@
-import { Link } from 'react-router-dom';
+﻿import os
+
+path = r"C:\Projects\Speechify-clone-anuj\Hawking\frontend\src\pages\Landing.tsx"
+
+content = """import { Link } from 'react-router-dom';
 import { Play, Headphones, Brain, Eye, Sparkles } from 'lucide-react';
 import AsciiBackground from '../components/AsciiBackground';
 
@@ -234,3 +238,9 @@ export default function Landing() {
     </div>
   );
 }
+"""
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(content)
+
+print(f"Successfully wrote {len(content)} bytes to {path} as UTF-8.")
