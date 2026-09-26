@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UploadCloud, File, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { FaGoogleDrive, FaDropbox, FaMicrosoft } from 'react-icons/fa';
 import { API_URL, networkErrorMessage, parseApiError } from '../config/api';
 import {
   MAX_UPLOAD_BYTES,
@@ -111,6 +112,23 @@ export default function DocumentUpload() {
         >
           Browse Files
         </button>
+        <div className="mt-8 pt-6 border-t border-borderDark flex flex-col items-center">
+          <p className="text-xs text-textMuted uppercase tracking-wider mb-4 font-semibold">Or import directly from</p>
+          <div className="flex gap-4 flex-wrap justify-center">
+            <button className="flex items-center gap-2 bg-cardBg border border-borderDark px-4 py-2 text-sm text-gray-300 hover:border-accentBlue hover:text-accentBlue transition rounded-none">
+              <FaGoogleDrive className="w-4 h-4" />
+              GOOGLE DRIVE
+            </button>
+            <button className="flex items-center gap-2 bg-cardBg border border-borderDark px-4 py-2 text-sm text-gray-300 hover:border-brand hover:text-brand transition rounded-none">
+              <FaDropbox className="w-4 h-4" />
+              DROPBOX
+            </button>
+            <button className="flex items-center gap-2 bg-cardBg border border-borderDark px-4 py-2 text-sm text-gray-300 hover:border-accent hover:text-accent transition rounded-none">
+              <FaMicrosoft className="w-4 h-4" />
+              ONEDRIVE
+            </button>
+          </div>
+        </div>
       </div>
 
       {file && (
@@ -160,5 +178,6 @@ export default function DocumentUpload() {
     </div>
   );
 }
+
 
 
