@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { FaGoogleDrive, FaDropbox, FaMicrosoft } from 'react-icons/fa';
 import { Type, Link as LinkIcon, BookOpen, Headphones, ChevronDown, Mic, ArrowUp, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PasteTextModal from '../components/PasteTextModal';
@@ -27,9 +26,6 @@ export default function Dashboard() {
   const workflows = ['Listen to Text'];
 
   const actionCards = [
-    { name: 'Upload from Drive', icon: <FaGoogleDrive className="w-10 h-10" color="#1FA463" /> },
-    { name: 'Upload from Dropbox', icon: <FaDropbox className="w-10 h-10" color="#0061FE" /> },
-    { name: 'Upload from OneDrive', icon: <FaMicrosoft className="w-10 h-10" color="#0078D4" /> },
     { name: 'Paste Text', icon: <Type className="w-10 h-10" color="#0ea5e9" /> },
     { name: 'Find a Book', icon: <BookOpen className="w-10 h-10" color="#eab308" /> },
     { name: 'Paste Link', icon: <LinkIcon className="w-10 h-10" color="#10b981" /> },
@@ -170,6 +166,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 

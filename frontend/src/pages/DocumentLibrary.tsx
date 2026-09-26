@@ -16,6 +16,7 @@ import {
   Square,
   X,
   Loader2,
+  Search,
 } from 'lucide-react';
 import { useLibrary } from '../context/LibraryContext';
 import type { DocumentItem, FolderItem } from '../types/library';
@@ -64,6 +65,7 @@ export default function DocumentLibrary() {
   const [showFolderDeleteConfirm, setShowFolderDeleteConfirm] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -535,6 +537,8 @@ export default function DocumentLibrary() {
     </div>
   );
 }
+
+
 
 
 
