@@ -26,12 +26,12 @@ export default function Dashboard() {
   const workflows = ['Listen to Text'];
 
   const actionCards = [
-    { name: 'Upload from Drive', icon: 'M4.5 19L11.5 7L18.5 19H4.5ZM12 4L19 16L22 10.5L15 2L12 4ZM2 10.5L5 16L12 4L9 2L2 10.5Z', color: '#1FA463', bg: '#1e1c1a' },
-    { name: 'Upload from Dropbox', icon: 'M12 2L4 7L12 12L20 7L12 2ZM4 17L12 22L20 17L12 12L4 17ZM4 7V17L12 12V2L4 7ZM20 7V17L12 12V2L20 7Z', color: '#0061FE', bg: '#1e1c1a' },
-    { name: 'Upload from OneDrive', icon: 'M17.5 10.5C17.5 10.5 17.5 10.5 17.5 10.5C17.5 7.5 15 5 12 5C9.5 5 7.4 6.8 6.7 9.1C6.5 9.1 6.3 9.1 6.1 9.1C3.3 9.1 1 11.4 1 14.2C1 17 3.3 19.3 6.1 19.3H17.5C19.9 19.3 22 17.3 22 14.9C22 12.6 20.1 10.7 17.5 10.5Z', color: '#0078D4', bg: '#1e1c1a' },
-    { name: 'Paste Text', icon: 'M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM13 9V3.5L18.5 9H13Z', color: '#ed5e29', bg: '#1e1c1a' },
-    { name: 'Find a Book', icon: 'M12 3C8.1 3 4.4 4.4 1.5 6.9C1.2 7.1 1 7.6 1 8V20.5C1 21.1 1.6 21.5 2.1 21.3C5.1 19.6 8.5 18.7 12 18.7C15.5 18.7 18.9 19.6 21.9 21.3C22.4 21.5 23 21.1 23 20.5V8C23 7.6 22.8 7.1 22.5 6.9C19.6 4.4 15.9 3 12 3ZM12 16.7C8.9 16.7 5.8 17.4 3 18.8V8.6C5.6 6.8 8.7 5.8 12 5.8C15.3 5.8 18.4 6.8 21 8.6V18.8C18.2 17.4 15.1 16.7 12 16.7Z', color: '#F59E0B', bg: '#1e1c1a' },
-    { name: 'Paste Link', icon: 'M3.9 12C3.9 10.3 5.3 8.9 7 8.9H11V7H7C4.2 7 2 9.2 2 12C2 14.8 4.2 17 7 17H11V15.1H7C5.3 15.1 3.9 13.7 3.9 12ZM8 13H16V11H8V13ZM17 7H13V8.9H17C18.7 8.9 20.1 10.3 20.1 12C20.1 13.7 18.7 15.1 17 15.1H13V17H17C19.8 17 22 14.8 22 12C22 9.2 19.8 7 17 7Z', color: '#ed5e29', bg: '#1e1c1a' },
+    { name: 'Upload from Drive', icon: <FaGoogleDrive className="w-10 h-10" color="#1FA463" /> },
+    { name: 'Upload from Dropbox', icon: <FaDropbox className="w-10 h-10" color="#0061FE" /> },
+    { name: 'Upload from OneDrive', icon: <FaMicrosoft className="w-10 h-10" color="#0078D4" /> },
+    { name: 'Paste Text', icon: <Type className="w-10 h-10" color="#0ea5e9" /> },
+    { name: 'Find a Book', icon: <BookOpen className="w-10 h-10" color="#eab308" /> },
+    { name: 'Paste Link', icon: <LinkIcon className="w-10 h-10" color="#10b981" /> },
   ];
 
   const handleCloudImport = async (provider: string) => {
@@ -173,5 +173,6 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
