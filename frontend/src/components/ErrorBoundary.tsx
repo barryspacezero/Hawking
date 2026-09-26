@@ -30,7 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-gray-400 mb-6">{this.state.message}</p>
             <button
               onClick={() => this.setState({ hasError: false, message: '' })}
-              className="px-4 py-2 rounded-lg bg-brand text-white text-sm hover:bg-brand-hover transition"
+              className="px-4 py-2 rounded-none bg-brand text-white text-sm hover:bg-brand-hover transition"
             >
               Try again
             </button>
@@ -42,3 +42,4 @@ export default class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+

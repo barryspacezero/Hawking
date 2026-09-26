@@ -21,3 +21,4 @@ export function useBionicReading() {
     storageKey: STORAGE_KEY,
   };
 }
+

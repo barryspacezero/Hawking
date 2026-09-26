@@ -77,3 +77,4 @@ export async function downloadFromUrl(url: string, filename: string) {
   const blob = await res.blob();
   downloadBlob(blob, filename);
 }
+

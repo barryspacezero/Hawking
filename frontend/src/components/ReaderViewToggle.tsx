@@ -14,7 +14,7 @@ export default function ReaderViewToggle({ hasOriginalSource }: ReaderViewToggle
   ];
 
   return (
-    <div className="flex bg-black/30 rounded-full p-1 border border-white/10">
+    <div className="flex bg-black/30 rounded-none p-1 border border-white/10">
       {modes.map((mode) => {
         const disabled = mode.id === 'original' && !hasOriginalSource;
         const isActive = readerViewMode === mode.id;
@@ -24,7 +24,7 @@ export default function ReaderViewToggle({ hasOriginalSource }: ReaderViewToggle
             onClick={() => !disabled && setReaderViewMode(mode.id)}
             disabled={disabled}
             title={disabled ? 'Original file not available for this document' : mode.label}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-medium transition ${
               isActive
                 ? 'bg-white/15 text-white'
                 : disabled
@@ -40,3 +40,4 @@ export default function ReaderViewToggle({ hasOriginalSource }: ReaderViewToggle
     </div>
   );
 }
+

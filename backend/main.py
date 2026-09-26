@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from database import engine, Base, run_migrations
 import models
 from routers import folders
-from tts.audio_generation import generate_audio_for_document
+from tts.job_dispatcher import dispatch_tts_job
 from tts.job_queue import tts_job_queue
 
 load_dotenv()
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Hawking API")
 
-tts_job_queue.configure(generate_audio_for_document)
+tts_job_queue.configure(dispatch_tts_job)
 
 # Configure CORS — allow both localhost and 127.0.0.1 during local dev
 default_origins = "http://localhost:5173,http://127.0.0.1:5173"
@@ -45,9 +45,10 @@ except ImportError as e:
 
 # Voice clone router (requires torch, chatterbox — heavy ML deps)
 try:
-    from routers import voice_clone, voice_profiles
+    from routers import voice_clone, voice_profiles, voice_studio
     app.include_router(voice_clone.router)
     app.include_router(voice_profiles.router)
+    app.include_router(voice_studio.router)
 except ImportError as e:
     logger.warning(f"Voice clone router unavailable (missing dep): {e}")
 

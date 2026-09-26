@@ -44,3 +44,17 @@ def delete_profile_files(profile_id: int) -> None:
     path = profile_dir(profile_id)
     if os.path.isdir(path):
         shutil.rmtree(path, ignore_errors=True)
+
+
+def profile_reference_abs(profile) -> str:
+    path = resolve_profile_path(profile.reference_audio_path)
+    if not os.path.exists(path):
+        raise FileNotFoundError("Voice profile reference audio is missing.")
+    return path
+
+
+def profile_conditioning_abs(profile) -> str | None:
+    if not profile.conditioning_path:
+        return None
+    path = resolve_profile_path(profile.conditioning_path)
+    return path if os.path.exists(path) else None

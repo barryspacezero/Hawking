@@ -91,12 +91,12 @@ export default function VoiceLibrary() {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
+        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-none text-sm">
           {error}
         </div>
       )}
 
-      <label className="mb-6 flex items-center justify-center gap-2 bg-cardBg border border-dashed border-white/10 rounded-2xl p-5 cursor-pointer hover:border-brand/50 transition">
+      <label className="mb-6 flex items-center justify-center gap-2 bg-cardBg  border border-dashed border-borderDark rounded-none p-5 cursor-pointer hover:border-brand/50 transition">
         <input
           type="file"
           accept="audio/*"
@@ -135,9 +135,9 @@ export default function VoiceLibrary() {
           {profiles.map((profile) => (
             <div
               key={profile.id}
-              className="bg-cardBg border border-white/5 rounded-2xl p-4 flex items-center gap-4"
+              className="bg-cardBg  border border-borderDark rounded-none p-4 flex items-center gap-4"
             >
-              <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-none bg-brand/20 flex items-center justify-center shrink-0">
                 <Mic className="w-5 h-5 text-brand" />
               </div>
 
@@ -150,7 +150,7 @@ export default function VoiceLibrary() {
                       if (e.key === 'Enter') handleRename(profile.id);
                       if (e.key === 'Escape') setRenamingId(null);
                     }}
-                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    className="w-full bg-black/30 border border-borderDark rounded-none px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                     autoFocus
                   />
                 ) : (
@@ -167,7 +167,7 @@ export default function VoiceLibrary() {
                 {renamingId === profile.id ? (
                   <button
                     onClick={() => handleRename(profile.id)}
-                    className="px-3 py-1.5 text-xs rounded-lg bg-brand text-white hover:bg-brand-hover transition"
+                    className="px-3 py-1.5 text-xs rounded-none bg-brand text-white hover:bg-brand-hover transition"
                   >
                     Save
                   </button>
@@ -177,7 +177,7 @@ export default function VoiceLibrary() {
                       setRenamingId(profile.id);
                       setRenameValue(profile.name);
                     }}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition"
+                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-none transition"
                     title="Rename"
                   >
                     <Pencil className="w-4 h-4" />
@@ -185,7 +185,7 @@ export default function VoiceLibrary() {
                 )}
                 <button
                   onClick={() => setDeleteTarget(profile)}
-                  className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                  className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-none transition"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -208,3 +208,5 @@ export default function VoiceLibrary() {
     </div>
   );
 }
+
+

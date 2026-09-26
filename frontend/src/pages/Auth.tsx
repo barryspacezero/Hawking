@@ -40,23 +40,23 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#1a1a24] p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]   via-[#111]  p-4 font-sans relative overflow-hidden">
       {/* Decorative blurred blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-purple-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] rounded-none bg-blue-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-none bg-purple-600/10 blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-500 mb-4 backdrop-blur-md border border-white/5 shadow-[0_0_30px_rgba(59,130,246,0.2)]">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-none bg-blue-500/10 text-blue-500 mb-4 backdrop-blur-md border border-white/5 ">
             <PlayCircle className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Hawking</h1>
           <p className="text-white/50 text-sm">Sign in to access your library</p>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl overflow-hidden relative">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-none  overflow-hidden relative">
           {/* Subtle inner top highlight */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-px   via-white/20 " />
 
           <form onSubmit={handleAuth} className="space-y-5">
             <div>
@@ -70,7 +70,7 @@ export default function Auth() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3.5 bg-black/20 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-black/20 border border-white/10 rounded-none text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
                   placeholder="you@example.com"
                 />
               </div>
@@ -87,20 +87,20 @@ export default function Auth() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3.5 bg-black/20 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-black/20 border border-white/10 rounded-none text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
             {notice && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm text-center">
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-none text-green-400 text-sm text-center">
                 {notice}
               </div>
             )}
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-none text-red-400 text-sm text-center">
                 {error}
               </div>
             )}
@@ -108,7 +108,7 @@ export default function Auth() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-4 px-4 rounded-2xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-[#0a0a0a] transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none mt-2"
+              className="w-full flex justify-center py-4 px-4 rounded-none text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-[#0a0a0a] transition-all duration-300  hover: hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none mt-2"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -138,3 +138,4 @@ export default function Auth() {
     </div>
   );
 }
+

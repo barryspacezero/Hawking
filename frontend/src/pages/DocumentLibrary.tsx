@@ -186,10 +186,10 @@ export default function DocumentLibrary() {
   const renderDocCard = (doc: DocumentItem) => {
     const isSelected = selectedIds.has(doc.id);
     const baseClass = viewMode === 'grid'
-      ? 'relative bg-cardBg rounded-2xl border p-5 hover:border-brand/50 hover:bg-cardHover transition cursor-pointer'
-      : 'bg-cardBg rounded-xl border p-4 hover:border-brand/50 hover:bg-cardHover transition cursor-pointer flex items-center gap-4';
+      ? 'relative bg-cardBg  rounded-none border p-5 hover:border-brand/50 hover:bg-cardHover transition cursor-pointer'
+      : 'bg-cardBg  rounded-none border p-4 hover:border-brand/50 hover:bg-cardHover transition cursor-pointer flex items-center gap-4';
 
-    const borderClass = isSelected ? 'border-brand/60 ring-1 ring-brand/30' : 'border-white/5';
+    const borderClass = isSelected ? 'border-brand/60 ring-1 ring-brand/30' : 'border-borderDark';
 
     return (
       <div
@@ -250,7 +250,7 @@ export default function DocumentLibrary() {
       return (
         <div
           key={`folder-${folder.id}`}
-          className="bg-cardBg rounded-xl border border-white/5 p-4 flex items-center gap-4 hover:border-brand/50 hover:bg-cardHover transition group"
+          className="bg-cardBg  rounded-none border border-borderDark p-4 flex items-center gap-4 hover:border-brand/50 hover:bg-cardHover transition group"
         >
           <Folder className="w-6 h-6 text-brand shrink-0" />
           {isRenaming ? (
@@ -262,7 +262,7 @@ export default function DocumentLibrary() {
                 if (e.key === 'Enter') handleRenameFolder(folder.id);
                 if (e.key === 'Escape') setRenamingFolderId(null);
               }}
-              className="flex-1 bg-cardBg border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand"
+              className="flex-1 bg-cardBg  border border-borderDark rounded-none px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand"
             />
           ) : (
             <button
@@ -276,14 +276,14 @@ export default function DocumentLibrary() {
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}
-              className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400"
+              className="p-1.5 rounded-none hover:bg-white/10 text-gray-400"
               title="Rename folder"
             >
               <Pencil className="w-4 h-4" />
             </button>
             <button
               onClick={() => { setFolderToDelete(folder); setShowFolderDeleteConfirm(true); }}
-              className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400"
+              className="p-1.5 rounded-none hover:bg-white/10 text-gray-400 hover:text-red-400"
               title="Delete folder"
             >
               <Trash2 className="w-4 h-4" />
@@ -296,7 +296,7 @@ export default function DocumentLibrary() {
     return (
       <div
         key={`folder-${folder.id}`}
-        className="bg-cardBg rounded-2xl border border-white/5 p-5 hover:border-brand/50 hover:bg-cardHover transition group relative"
+        className="bg-cardBg  rounded-none border border-borderDark p-5 hover:border-brand/50 hover:bg-cardHover transition group relative"
       >
         <div className="flex items-start justify-between mb-4">
           <button onClick={() => navigate(`/library/folder/${folder.id}`)} className="text-left flex-1">
@@ -310,7 +310,7 @@ export default function DocumentLibrary() {
                   if (e.key === 'Enter') handleRenameFolder(folder.id);
                   if (e.key === 'Escape') setRenamingFolderId(null);
                 }}
-                className="w-full bg-cardBg border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand"
+                className="w-full bg-cardBg  border border-borderDark rounded-none px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand"
               />
             ) : (
               <h3 className="font-semibold text-gray-200 line-clamp-2">{folder.name}</h3>
@@ -319,13 +319,13 @@ export default function DocumentLibrary() {
           <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={() => { setRenamingFolderId(folder.id); setRenameValue(folder.name); }}
-              className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400"
+              className="p-1.5 rounded-none hover:bg-white/10 text-gray-400"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => { setFolderToDelete(folder); setShowFolderDeleteConfirm(true); }}
-              className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400"
+              className="p-1.5 rounded-none hover:bg-white/10 text-gray-400 hover:text-red-400"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -360,22 +360,22 @@ export default function DocumentLibrary() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-3xl font-extrabold     ">
           {currentFolder ? currentFolder.name : 'Your Library'}
         </h1>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-black/40 rounded-full p-1 border border-white/5">
+          <div className="flex bg-black/40 rounded-none p-1 border border-borderDark">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-full transition ${viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`p-2 rounded-none transition ${viewMode === 'grid' ? 'bg-brand/10 text-brand border-brand/30' : 'text-gray-400 hover:text-gray-200'}`}
               title="Grid view"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-full transition ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`p-2 rounded-none transition ${viewMode === 'list' ? 'bg-brand/10 text-brand border-brand/30' : 'text-gray-400 hover:text-gray-200'}`}
               title="List view"
             >
               <List className="w-4 h-4" />
@@ -384,9 +384,9 @@ export default function DocumentLibrary() {
 
           <button
             onClick={() => setShowNewFolder(true)}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm text-gray-200 transition"
+            className="flex items-center gap-2 bg-cardHover border border-borderDark hover:border-brand/50 text-white px-4 py-2 rounded-none text-sm text-gray-200 transition"
           >
-            <FolderPlus className="w-4 h-4" />
+            <FolderPlus className="w-4 h-4 text-brand-light" />
             New Folder
           </button>
 
@@ -396,7 +396,7 @@ export default function DocumentLibrary() {
                 if (allSelected) clearSelection();
                 else selectAll(visibleDocIds);
               }}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm text-gray-200 transition"
+              className="flex items-center gap-2 bg-cardHover border border-borderDark hover:border-brand/50 text-white px-4 py-2 rounded-none text-sm text-gray-200 transition"
             >
               <CheckSquare className="w-4 h-4" />
               {allSelected ? 'Deselect All' : 'Select All'}
@@ -406,7 +406,7 @@ export default function DocumentLibrary() {
       </div>
 
       {actionError && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-none text-sm">
           {actionError}
         </div>
       )}
@@ -419,9 +419,9 @@ export default function DocumentLibrary() {
             onChange={(e) => setNewFolderName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
             placeholder="Folder name"
-            className="flex-1 min-w-[200px] bg-cardBg border border-white/10 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand"
+            className="flex-1 min-w-[200px] bg-cardBg  border border-borderDark rounded-none px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand"
           />
-          <button onClick={handleCreateFolder} className="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-xl text-sm font-medium">
+          <button onClick={handleCreateFolder} className="   text-white   px-4 py-2 rounded-none text-sm font-medium">
             Create
           </button>
           <button onClick={() => { setShowNewFolder(false); setNewFolderName(''); }} className="text-gray-400 hover:text-white px-3">
@@ -442,7 +442,7 @@ export default function DocumentLibrary() {
       )}
 
       {!loading && !error && isEmpty && (
-        <div className="bg-cardBg rounded-2xl border border-white/10 border-dashed p-12 text-center">
+        <div className="bg-cardBg  rounded-none border border-borderDark border-dashed p-12 text-center">
           <FileText className="w-12 h-12 text-gray-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-200">
             {currentFolder ? 'This folder is empty' : 'No documents yet'}
@@ -452,7 +452,7 @@ export default function DocumentLibrary() {
               ? 'Move files here or upload a new document.'
               : 'Upload a PDF, DOCX, EPUB, or other supported file to get started.'}
           </p>
-          <Link to="/upload" className="bg-brand text-white px-6 py-2 rounded-full hover:bg-brand-hover font-medium transition">
+          <Link to="/upload" className="bg-brand text-white px-6 py-2 rounded-none hover:bg-brand-hover font-medium transition">
             Upload Document
           </Link>
         </div>
@@ -467,24 +467,24 @@ export default function DocumentLibrary() {
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 bg-cardBg/95 border-t border-white/10 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+        <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-40 bg-cardBg  border-t border-borderDark backdrop-blur-md px-6 py-4 flex items-center justify-between">
           <span className="text-sm text-gray-300">{selectedIds.size} selected</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowMoveModal(true)}
-              className="flex items-center gap-2 bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-full text-sm font-medium transition"
+              className="flex items-center gap-2    text-white   px-4 py-2 rounded-none text-sm font-medium transition"
             >
               <FolderInput className="w-4 h-4" />
               Move
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-2 bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-medium transition"
+              className="flex items-center gap-2 bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-none text-sm font-medium transition"
             >
               <Trash2 className="w-4 h-4" />
               Delete
             </button>
-            <button onClick={clearSelection} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10">
+            <button onClick={clearSelection} className="p-2 text-gray-400 hover:text-white rounded-none hover:bg-white/10">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -521,3 +521,6 @@ export default function DocumentLibrary() {
     </div>
   );
 }
+
+
+

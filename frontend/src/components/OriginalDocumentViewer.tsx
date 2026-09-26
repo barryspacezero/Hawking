@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { FileText, AlertCircle } from 'lucide-react';
 import PdfDocumentViewer from './PdfDocumentViewer';
 import type { ReaderBlock } from './TextViewReader';
+import { ReaderBlockText } from './ReaderBlockText';
+import { useBionicReading } from '../hooks/useBionicReading';
+import { useReader } from '../context/ReaderContext';
 import { TEXT_PREVIEW_FILE_TYPES } from '../constants/uploads';
 import { API_URL } from '../config/api';
 
@@ -22,6 +25,8 @@ export default function OriginalDocumentViewer({
 }: OriginalDocumentViewerProps) {
   const [txtContent, setTxtContent] = useState<string | null>(null);
   const [txtError, setTxtError] = useState('');
+  const { enabled: bionicReading } = useBionicReading();
+  const { activeBlockId, currentTime, fontSize } = useReader();
 
   useEffect(() => {
     if (!TEXT_PREVIEW_FILE_TYPES.has(fileType) || !sourcePath) return;
@@ -68,7 +73,7 @@ export default function OriginalDocumentViewer({
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div
-          className="rounded-xl border overflow-hidden"
+          className="rounded-none border overflow-hidden"
           style={{ borderColor: 'var(--player-border)', backgroundColor: 'var(--player-bg)' }}
         >
           <div
@@ -78,12 +83,41 @@ export default function OriginalDocumentViewer({
             <FileText className="w-4 h-4" />
             Original file — preserved formatting
           </div>
-          <pre
+          <div
             className="p-6 whitespace-pre-wrap font-mono text-sm leading-relaxed overflow-x-auto"
-            style={{ color: 'var(--reader-text)' }}
+            style={{ color: 'var(--reader-text)', fontSize: `${fontSize}px` }}
           >
-            {txtContent}
-          </pre>
+            {blocks.length > 0 ? (
+              <div className="space-y-4">
+                {blocks.map((block) => {
+                  const isActive = activeBlockId === block.id;
+                  return (
+                    <div
+                      key={block.id}
+                      id={`block-${block.id}`}
+                      className={isActive ? 'ring-2 ring-brand/30 rounded-none p-2 -m-2' : undefined}
+                    >
+                      <ReaderBlockText
+                        text={block.text}
+                        wordTimestamps={block.word_timestamps}
+                        currentTime={currentTime}
+                        isActive={isActive}
+                        bionicEnabled={bionicReading}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <ReaderBlockText
+                text={txtContent}
+                wordTimestamps={null}
+                currentTime={0}
+                isActive={false}
+                bionicEnabled={bionicReading}
+              />
+            )}
+          </div>
         </div>
       </div>
     );
@@ -95,3 +129,4 @@ export default function OriginalDocumentViewer({
     </div>
   );
 }
+

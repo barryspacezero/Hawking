@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, memo } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, memo } from 'react';
 import { Play, Pause, RotateCcw, RotateCw, Globe, Download } from 'lucide-react';
 import { downloadFromUrl } from '../utils/wavUtils';
 import { useReader } from '../context/ReaderContext';
@@ -7,6 +7,7 @@ import { API_URL } from '../config/api';
 interface DocumentBlock {
   id: number;
   block_index: number;
+  page_number: number | null;
   audio_status: string;
   audio_path: string | null;
   audio_duration: number | null;
@@ -16,6 +17,7 @@ interface DocumentBlock {
 interface AudioPlayerProps {
   documentId: string;
   blocks: DocumentBlock[];
+  pageCount: number | null;
   onVoiceClick: () => void;
 }
 
@@ -32,8 +34,17 @@ function blocksPlaybackEqual(a: DocumentBlock[], b: DocumentBlock[]): boolean {
   });
 }
 
-function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
-  const { isPlaying, setIsPlaying, activeBlockId, setActiveBlockId, playbackSpeed, setPlaybackSpeed, setCurrentTime } = useReader();
+function AudioPlayer({ documentId, blocks, pageCount, onVoiceClick }: AudioPlayerProps) {
+  const {
+    isPlaying,
+    setIsPlaying,
+    activeBlockId,
+    setActiveBlockId,
+    playbackSpeed,
+    setPlaybackSpeed,
+    setCurrentTime,
+    viewerPage,
+  } = useReader();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playableBlocksRef = useRef<DocumentBlock[]>([]);
   const activeBlockIdRef = useRef<number | null>(activeBlockId);
@@ -47,6 +58,13 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
   activeBlockIdRef.current = activeBlockId;
 
   const currentIndex = playableBlocks.findIndex((b) => b.id === activeBlockId);
+  const activeBlock = blocks.find((b) => b.id === activeBlockId) ?? null;
+
+  const displayPage = activeBlock?.page_number ?? viewerPage;
+  const positionLabel =
+    pageCount != null && displayPage != null
+      ? `Page ${displayPage} / ${pageCount}`
+      : `Block ${currentIndex >= 0 ? currentIndex + 1 : 0} of ${playableBlocks.length}`;
 
   const handleNextBlock = useCallback(() => {
     const doneBlocks = playableBlocksRef.current;
@@ -69,7 +87,8 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
     }
   }, [isPlaying, activeBlockId, playableBlocks, setActiveBlockId]);
 
-  useEffect(() => {
+  // Reset highlight time before paint so a new block never inherits the previous block's clock.
+  useLayoutEffect(() => {
     setProgress(0);
     setDuration(0);
     setCurrentTime(0);
@@ -105,8 +124,8 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
     };
   }, [setCurrentTime]);
 
-  const activeBlock = playableBlocks.find((b) => b.id === activeBlockId);
-  const voiceCacheKey = activeBlock?.audio_voice ?? activeBlock?.audio_path ?? '';
+  const activePlayableBlock = playableBlocks.find((b) => b.id === activeBlockId);
+  const voiceCacheKey = activePlayableBlock?.audio_voice ?? activePlayableBlock?.audio_path ?? '';
 
   // Load a new source only when the active block (or its voice/file revision) changes.
   useEffect(() => {
@@ -212,8 +231,10 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
 
   return (
     <div
-      className="fixed bottom-0 left-0 lg:right-0 lg:left-64 border-t z-30 transition-all duration-300 transform translate-y-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+      className="fixed bottom-0 left-0 lg:right-0 lg:left-64 border-t z-30 transition-all duration-300 transform translate-y-0 "
       style={{ backgroundColor: 'var(--player-bg)', borderColor: 'var(--player-border)', backdropFilter: 'blur(10px)' }}
+      data-current-time={progress.toFixed(3)}
+      data-active-block-id={activeBlockId ?? ''}
     >
       <div className="absolute top-0 left-0 h-1 bg-brand/20 w-full overflow-hidden">
         <div
@@ -225,14 +246,14 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
       <div className="max-w-3xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wider opacity-60 mb-3" style={{ color: 'var(--reader-text)' }}>
           <span>{currentPercent}% Read</span>
-          <span>Block {currentIndex >= 0 ? currentIndex + 1 : 0} of {playableBlocks.length}</span>
+          <span>{positionLabel}</span>
           <span>{duration > 0 ? formatTime(remainingSeconds) : '--:--'}</span>
         </div>
 
         <div className="flex items-center justify-between">
           <button
             onClick={onVoiceClick}
-            className="flex items-center justify-center w-12 h-12 rounded-full hover:bg-black/5 transition"
+            className="flex items-center justify-center w-12 h-12 rounded-none hover:bg-black/5 transition"
             style={{ color: 'var(--reader-text)' }}
           >
             <Globe className="w-6 h-6 opacity-70" />
@@ -241,7 +262,7 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
           <div className="flex items-center justify-center space-x-6">
             <button
               onClick={skipBackward}
-              className="p-2 hover:bg-black/5 rounded-full transition opacity-80 hover:opacity-100"
+              className="p-2 hover:bg-black/5 rounded-none transition opacity-80 hover:opacity-100"
               style={{ color: 'var(--reader-text)' }}
               title="Skip back 10 seconds"
             >
@@ -250,14 +271,14 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
 
             <button
               onClick={togglePlay}
-              className="flex items-center justify-center w-16 h-16 rounded-full bg-brand text-white hover:bg-brand-hover hover:scale-105 transition-all shadow-lg"
+              className="flex items-center justify-center w-16 h-16 rounded-none bg-brand text-white hover:bg-brand-hover hover:scale-105 transition-all "
             >
               {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
             </button>
 
             <button
               onClick={skipForward}
-              className="p-2 hover:bg-black/5 rounded-full transition opacity-80 hover:opacity-100"
+              className="p-2 hover:bg-black/5 rounded-none transition opacity-80 hover:opacity-100"
               style={{ color: 'var(--reader-text)' }}
               title="Skip forward 10 seconds"
             >
@@ -268,7 +289,7 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
           <div className="flex items-center space-x-1">
             <button
               onClick={handleDownload}
-              className="flex items-center justify-center w-12 h-12 rounded-full hover:bg-black/5 transition"
+              className="flex items-center justify-center w-12 h-12 rounded-none hover:bg-black/5 transition"
               style={{ color: 'var(--reader-text)' }}
               title="Download current block audio"
             >
@@ -276,7 +297,7 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
             </button>
             <button
               onClick={cycleSpeed}
-              className="flex items-center justify-center w-12 h-12 rounded-full hover:bg-black/5 transition text-sm font-bold"
+              className="flex items-center justify-center w-12 h-12 rounded-none hover:bg-black/5 transition text-sm font-bold"
               style={{ color: 'var(--reader-text)' }}
             >
               {playbackSpeed}x
@@ -289,5 +310,10 @@ function AudioPlayer({ documentId, blocks, onVoiceClick }: AudioPlayerProps) {
 }
 
 export default memo(AudioPlayer, (prev, next) => {
-  return prev.documentId === next.documentId && blocksPlaybackEqual(prev.blocks, next.blocks);
+  return (
+    prev.documentId === next.documentId &&
+    prev.pageCount === next.pageCount &&
+    blocksPlaybackEqual(prev.blocks, next.blocks)
+  );
 });
+

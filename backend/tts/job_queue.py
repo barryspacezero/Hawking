@@ -30,24 +30,25 @@ class JobSubmitResult(str, Enum):
 
 @dataclass(frozen=True)
 class AudioJob:
-    document_id: int
-    voice_tier: str
+    kind: str = "document"  # document | studio
+    document_id: Optional[int] = None
+    studio_job_id: Optional[int] = None
+    voice_tier: str = "gtts"
     force: bool = False
 
 
 class TTSJobQueue:
-    """Process exactly one document's audio-generation job at a time."""
+    """Process exactly one audio-generation job at a time."""
 
     def __init__(self) -> None:
         self._mutex = threading.Lock()
         self._queue: Deque[AudioJob] = deque()
         self._active_job: Optional[AudioJob] = None
-        self._active_document_id: Optional[int] = None
         self._worker_thread: Optional[threading.Thread] = None
-        self._synthesis_fn: Optional[Callable[[int, str], None]] = None
+        self._synthesis_fn: Optional[Callable[[AudioJob], None]] = None
         self._stop = False
 
-    def configure(self, synthesis_fn: Callable[[int, str], None]) -> None:
+    def configure(self, synthesis_fn: Callable[[AudioJob], None]) -> None:
         self._synthesis_fn = synthesis_fn
 
     def submit(
@@ -67,44 +68,93 @@ class TTSJobQueue:
         if not force and all_blocks_done:
             return JobSubmitResult.ALREADY_DONE, None
 
-        job = AudioJob(document_id=document_id, voice_tier=voice_tier, force=force)
+        job = AudioJob(
+            kind="document",
+            document_id=document_id,
+            voice_tier=voice_tier,
+            force=force,
+        )
+        return self._enqueue(job)
 
+    def submit_studio(self, studio_job_id: int) -> tuple[JobSubmitResult, Optional[int]]:
+        job = AudioJob(kind="studio", studio_job_id=studio_job_id)
+        return self._enqueue(job)
+
+    def _enqueue(self, job: AudioJob) -> tuple[JobSubmitResult, Optional[int]]:
         with self._mutex:
-            if self._active_document_id == document_id:
+            if self._is_active(job):
                 return JobSubmitResult.ALREADY_PROCESSING, None
 
-            if any(existing.document_id == document_id for existing in self._queue):
-                return JobSubmitResult.ALREADY_QUEUED, self._queue_position(document_id)
+            if self._is_queued(job):
+                return JobSubmitResult.ALREADY_QUEUED, self._queue_position(job)
 
             if self._active_job is not None:
                 self._queue.append(job)
                 self._ensure_worker()
-                return JobSubmitResult.QUEUED, self._queue_position(document_id)
+                return JobSubmitResult.QUEUED, self._queue_position(job)
 
             self._active_job = job
-            self._active_document_id = document_id
             self._ensure_worker()
             return JobSubmitResult.PROCESSING, None
 
-    def get_snapshot(self, document_id: Optional[int] = None) -> dict:
+    def get_snapshot(
+        self,
+        document_id: Optional[int] = None,
+        studio_job_id: Optional[int] = None,
+    ) -> dict:
         with self._mutex:
-            queued_ids = [job.document_id for job in self._queue]
-            position = self._queue_position(document_id) if document_id else None
+            queued_document_ids = [
+                job.document_id for job in self._queue if job.kind == "document" and job.document_id
+            ]
+            queued_studio_job_ids = [
+                job.studio_job_id for job in self._queue if job.kind == "studio" and job.studio_job_id
+            ]
             return {
-                "active_document_id": self._active_document_id,
-                "queued_document_ids": queued_ids,
-                "queue_position": position,
+                "active_document_id": self._active_job.document_id
+                if self._active_job and self._active_job.kind == "document"
+                else None,
+                "active_studio_job_id": self._active_job.studio_job_id
+                if self._active_job and self._active_job.kind == "studio"
+                else None,
+                "queued_document_ids": queued_document_ids,
+                "queued_studio_job_ids": queued_studio_job_ids,
+                "queue_position": self._queue_position_for(document_id, studio_job_id),
             }
 
-    def _queue_position(self, document_id: int) -> Optional[int]:
-        """How many documents are ahead of this one in line."""
-        ahead = (
-            1
-            if self._active_document_id is not None and self._active_document_id != document_id
-            else 0
+    def _job_key(self, job: AudioJob) -> tuple[str, int]:
+        if job.kind == "studio":
+            return ("studio", job.studio_job_id or -1)
+        return ("document", job.document_id or -1)
+
+    def _is_active(self, job: AudioJob) -> bool:
+        return self._active_job is not None and self._job_key(self._active_job) == self._job_key(job)
+
+    def _is_queued(self, job: AudioJob) -> bool:
+        key = self._job_key(job)
+        return any(self._job_key(existing) == key for existing in self._queue)
+
+    def _queue_position(self, job: AudioJob) -> Optional[int]:
+        return self._queue_position_for(
+            job.document_id if job.kind == "document" else None,
+            job.studio_job_id if job.kind == "studio" else None,
         )
+
+    def _queue_position_for(
+        self,
+        document_id: Optional[int],
+        studio_job_id: Optional[int],
+    ) -> Optional[int]:
+        target_key = None
+        if document_id is not None:
+            target_key = ("document", document_id)
+        elif studio_job_id is not None:
+            target_key = ("studio", studio_job_id)
+        if target_key is None:
+            return None
+
+        ahead = 1 if self._active_job is not None and self._job_key(self._active_job) != target_key else 0
         for idx, job in enumerate(self._queue):
-            if job.document_id == document_id:
+            if self._job_key(job) == target_key:
                 return ahead + idx
         return None
 
@@ -123,7 +173,6 @@ class TTSJobQueue:
                 elif self._queue:
                     job = self._queue.popleft()
                     self._active_job = job
-                    self._active_document_id = job.document_id
 
             if job is None:
                 time.sleep(0.05)
@@ -132,15 +181,19 @@ class TTSJobQueue:
             try:
                 if self._synthesis_fn is None:
                     raise RuntimeError("TTS job queue synthesis function not configured")
-                logger.info("TTS queue processing document %s", job.document_id)
-                self._synthesis_fn(job.document_id, job.voice_tier)
+                label = (
+                    f"studio job {job.studio_job_id}"
+                    if job.kind == "studio"
+                    else f"document {job.document_id}"
+                )
+                logger.info("TTS queue processing %s", label)
+                self._synthesis_fn(job)
             except Exception as exc:
-                logger.error("TTS queue failed for document %s: %s", job.document_id, exc)
+                logger.error("TTS queue failed for %s: %s", job, exc)
             finally:
                 with self._mutex:
-                    if self._active_job and self._active_job.document_id == job.document_id:
+                    if self._active_job and self._job_key(self._active_job) == self._job_key(job):
                         self._active_job = None
-                        self._active_document_id = None
 
 
 # Module-level singleton used by the API

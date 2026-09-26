@@ -41,6 +41,7 @@ faster-whisper==1.0.3
 torch
 torchaudio
 encodec
-chatterbox-tts
-resemblyzer
+# chatterbox-tts
+# resemblyzer
 librosa
+

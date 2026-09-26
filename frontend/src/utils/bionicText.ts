@@ -134,3 +134,4 @@ export function tokenizeBionicSegments(text: string): BionicSegment[] {
 export function segmentsToPlainText(segments: BionicSegment[]): string {
   return segments.map((segment) => segment.text).join('');
 }
+

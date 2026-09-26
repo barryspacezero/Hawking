@@ -7,7 +7,7 @@ const navItems = [
   { name: 'Home', icon: Home, path: '/' },
   { name: 'Upload', icon: Plus, path: '/upload' },
   { name: 'Library', icon: Library, path: '/library' },
-  { name: 'Clone', icon: Mic, path: '/voice-clone' },
+  { name: 'Studio', icon: Mic, path: '/voice-clone' },
   { name: 'Voices', icon: AudioLines, path: '/voice-library' },
 ];
 
@@ -51,7 +51,7 @@ export default function MobileNav() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs transition ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-none text-xs transition ${
                 isActive ? 'text-white' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
@@ -64,3 +64,4 @@ export default function MobileNav() {
     </div>
   );
 }
+

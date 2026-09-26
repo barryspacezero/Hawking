@@ -41,3 +41,4 @@ export async function deleteVoiceProfile(id: number): Promise<void> {
   const res = await fetch(`${API_URL}/voice-clone/profiles/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(await parseApiError(res, 'Failed to delete voice profile'));
 }
+

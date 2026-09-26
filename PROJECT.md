@@ -6,8 +6,9 @@ Hawking is a text-to-speech reading app. It allows users to upload PDF, DOCX, EP
 ## Architecture
 The application follows a decoupled client-server architecture:
 - **Frontend**: Single Page Application (SPA) built with React and Vite. It handles document upload, displays the document library, renders parsed chunk text, and manages per-block audio generation, polling, and playback.
+- **Block text rendering**: `ReaderBlockText` is the single shared component for parsed block text everywhere Document Detail shows readable text — **Text View**, **Original view (TXT blocks)**, and the PDF read-along panel. It layers playback word highlights (outer span + `bg-brand` background) and optional bionic bold segments (`renderBionicInline` inside each word). Word/timestamp pairing lives in `textHighlight.ts` (`assignWordTimestamps` with search-ahead + number-word equivalence).
 - **Backend**: REST API built with FastAPI. It handles multi-format document parsing and delegates TTS synthesis to a **sequential in-process job queue** (`backend/tts/job_queue.py`).
-- **TTS Layer**: Kokoro TTS model is loaded into memory exactly *once* as a Singleton. Audio generation runs through `TTSJobQueue`, which processes **one document at a time** on a background worker thread. Additional `generate-audio` requests are queued (not dropped, not run in parallel).
+- **TTS Layer**: Kokoro TTS model is loaded into memory exactly *once* as a Singleton. Audio generation runs through `TTSJobQueue`, which processes **one job at a time** on a background worker thread (document Kokoro jobs **and** Voice Clone Studio Chatterbox jobs share the same queue). Additional requests are queued (not dropped, not run in parallel).
 - **Database**: SQLite via SQLAlchemy. Contains `documents` and `document_blocks`.
   - *Data Modeling*: The text is parsed into a `document_blocks` table storing ordered chunks.
 - **File Storage**: Generated audio files are stored in a persistent local directory (`backend/data/audio`) and served via API endpoints.
@@ -32,9 +33,9 @@ Kokoro is a singleton for memory efficiency. Concurrent document jobs would comp
 - [x] TTS integration: Kokoro + gTTS end-to-end (per-block audio, background queue)
 - [x] Sequential TTS job queue (one document at a time, queued state in API + UI)
 - [x] **Bionic Reading mode** (Step 3): global toggle, punctuation-aware transform, unit-tested
-- [x] Frontend reading view + synced highlighting + playback controls
-- [x] **Voice Clone Studio** (Chatterbox TTS): reference upload, SSE streaming, download
+- [x] Frontend reading view + synced highlighting + playback controls (text view: bionic + word highlight work together during playback)
 - [x] **Named voice profiles** (Step 7): save/rename/delete cloned voices, Voice Library, reuse without re-upload
+- [x] **Voice Clone Studio** (Step 7b): queued generation in any saved voice from typed text, existing documents, or file upload
 - [ ] Forced alignment polish + word-level timestamp accuracy
 - [ ] XTTS v2 (natural tier) + document TTS voice switching UI
 - [ ] "Ask This Page" RAG pipeline
@@ -77,11 +78,13 @@ Bionic Reading bolds the leading portion of each word so the eye anchors and the
 
 *Why hand-rolled vs. an npm package?* This is a small string transform; owning it gives full control over punctuation, whitespace, and future audio-alignment markup without fighting a library's assumptions.
 
-*Markup, not mutation:* `parseBionicText()` returns `{ text, bold }` segments that concatenate to the **exact** input string. React renders `<strong>`/bold spans only — `block.text` in the database and for future timestamp alignment stays untouched.
+*Markup, not mutation:* `parseBionicText()` returns `{ text, bold }` segments that concatenate to the **exact** input string. React renders bold/remainder spans only — `block.text` in the database and for future timestamp alignment stays untouched.
+
+**Visual contrast (dim-remainder):** Real bionic-reading tools don't rely on font-weight alone — the non-bold suffix of each word is dimmed via `opacity` (`--bionic-remainder-opacity`, default `0.65`) while the bold prefix stays full weight and full brightness. Opacity is relative to whatever `--reader-text` is, so it works in dark, light, and sepia themes without hardcoded gray colors.
 
 **Global preference:** `useBionicReading()` hook (backed by `ReaderContext` + `localStorage` key `reader_bionicReading`). Toggle is always reachable from the sidebar/mobile header (compact **Bionic** button) and the Display Settings panel. Toggling is instant client-side — no API calls.
 
-**Apply everywhere:** `TextViewReader` uses `BionicPlainText` (memoized per block). **Any future view that renders block text** (library previews, highlighting view, etc.) must call `useBionicReading()` and the same utilities — do not fork a local toggle.
+**Apply everywhere:** `TextViewReader` delegates each block to `ReaderBlockText`, which reads `useBionicReading()` via its parent. During playback on the active block, bionic bold spans nest *inside* per-word highlight wrappers (independent visual layers; `block.text` unchanged). **Any future view that renders block text** must use `ReaderBlockText` (or the same utilities) — do not fork a separate highlight renderer.
 
 **Accessibility:** Each word is wrapped with `aria-label={fullWord}`; bold/normal visual spans use `aria-hidden="true"`. Screen readers announce the intact word, not bold fragments.
 
@@ -99,9 +102,21 @@ Voice cloning uses **Chatterbox TTS** (`chatterbox-tts`) in `backend/voice_clone
 
 *Delete semantics:* Removing a profile deletes its folder (reference + cache) and DB row only. **Already-generated document audio is untouched** — profiles are inputs for future cloning, not linked foreign keys on `document_blocks`.
 
-**Frontend:** `/voice-library` (list, rename, delete, upload-to-save) and `/voice-clone` (dropdown to pick a saved voice; post-clone modal to name and save a new sample). Default name: `Voice N` if skipped/empty.
+**Frontend:** `/voice-library` (list, rename, delete, upload-to-save). Default name: `Voice N` if skipped/empty.
 
-*Note:* PROJECT.md lists XTTS v2 as a future natural tier for document TTS. Step 7 extends the existing Chatterbox clone studio with persistence; XTTS integration is a separate roadmap item.
+### Voice Clone Studio (Step 7b — general-purpose cloned-voice TTS)
+A **dedicated studio view** (`/voice-clone`) separate from Document Detail. Document Detail is for reading one uploaded file with per-block highlighting; the studio is a *"use this saved voice on anything"* tool — typed text, an existing library document, or a fresh file upload.
+
+**Reused pieces (no duplicate parsers/engines):**
+- `voice_profiles` + Chatterbox `VoiceCloneService` from Step 7
+- `document_parser.parse_document()` for studio file uploads; existing `document_blocks` text for `document_id` input
+- `TTSJobQueue` extended with `submit_studio()` — studio jobs interleave with document Kokoro jobs, still one-at-a-time
+
+**API:** `POST /voice-clone/studio/generate` (multipart: `voice_profile_id`, `input_mode`, plus `text` | `document_id` | `file`), `GET /voice-clone/studio/jobs/{id}` (status: `queued` / `processing` / `done` / `failed`), `GET /voice-clone/studio/jobs/{id}/audio` (WAV when done). Limits: 10,000 chars text, 10 MB file upload.
+
+**Storage:** `studio_generations` table + `backend/data/studio_audio/`. Deleting a voice profile does not break completed studio WAVs already on disk.
+
+*Note:* PROJECT.md lists XTTS v2 as a future natural tier for document TTS. Studio and profiles use Chatterbox today; XTTS integration is a separate roadmap item.
 
 ## Decisions & Trade-offs Log
 - **2026-09-21**: Audio Caching & Disk Space. *Decision*: Audio files are stored on disk permanently. *Trade-off*: They take up space, but if disk space runs low, audio is completely deterministic and safely regenerable cache. We prioritize "keep forever" to save compute.
@@ -112,8 +127,13 @@ Voice cloning uses **Chatterbox TTS** (`chatterbox-tts`) in `backend/voice_clone
 - **2026-09-26**: Sequential TTS queue. *Decision*: In-process `deque` + worker thread. *Trade-off*: Simple and zero-infra, but not multi-process safe; scale with Redis/Celery later.
 - **2026-09-26**: Global Bionic Reading. *Decision*: Shared `ReaderContext` + `useBionicReading()` hook + global nav toggle (not per-page). *Trade-off*: localStorage-only until accounts exist; all text renderers must opt in explicitly.
 - **2026-09-26**: Hand-rolled bionic transform. *Decision*: `bionicText.ts` pure segments + React render layer; no npm bionic package. *Trade-off*: We maintain edge cases (punctuation, hyphens) ourselves, but keep full control for audio-alignment compatibility.
+- **2026-09-26**: Bionic dim-remainder contrast. *Decision*: Bold prefix at `font-weight: 700` + `opacity: 1`; non-bold suffix at `opacity: var(--bionic-remainder-opacity)` (not a fixed gray). *Trade-off*: Slightly more DOM styling than weight-only, but readable on dark backgrounds and theme-agnostic; one CSS variable to tune.
 - **2026-09-26**: Bionic markup vs. text mutation. *Decision*: Never modify `block.text`; only render-layer bold spans. *Trade-off*: Slightly more DOM nodes, but raw text stays stable for forced alignment / highlighting.
 - **2026-09-26**: Named voice profiles (Step 7). *Decision*: SQLite `voice_profiles` + per-profile disk folder; Chatterbox conditionals cached to `.pt`. *Trade-off*: Profiles are global (not per-user) until auth is wired to backend; delete is safe for existing audio because profiles are not FK-linked to generated blocks.
+- **2026-09-26**: Voice Clone Studio as its own view. *Decision*: Separate `/voice-clone` studio (queued, any input) vs Document Detail (per-block reading). Reuse parser + Chatterbox + shared `TTSJobQueue`. *Trade-off*: Studio and document TTS contend for the same single worker — simple and safe on one CPU, but studio jobs wait behind long document jobs.
+- **2026-09-26**: Unified block text renderer. *Decision*: `ReaderBlockText` handles bionic + forced-alignment highlights in one path instead of `TextViewReader` branching on playback state. *Trade-off*: Slightly more DOM nesting during playback, but eliminates the “features work in isolation” gap where highlighting swapped out the bionic renderer.
+- **2026-09-26**: Search-ahead Whisper alignment. *Decision*: `assignWordTimestamps()` matches text tokens to Whisper with number equivalence + compound joins instead of blind 1:1 pairing. *Trade-off*: Heuristic (not true forced alignment); severe transcript divergence still needs Step 4 backend polish.
+- **2026-09-26**: Original view uses blocks for bionic/highlight. *Decision*: Original TXT/PDF views render `ReaderBlockText` (read-along panel for PDF) instead of raw `<pre>`. *Trade-off*: Original TXT no longer shows byte-identical source file when blocks exist — formatting may differ slightly from raw file.
 
 ## Open-Source Models & Libraries
 - **Kokoro-82M**: Fast TTS. *License*: Apache 2.0. *Purpose*: CPU-friendly TTS for "cloud-lite". Used via `kokoro-onnx` wrapper.
@@ -139,6 +159,40 @@ The application is designed to be deployed on Render using a `render.yaml` Bluep
 - In-process TTS queue state is lost on server restart; any in-flight/queued jobs must be re-submitted.
 
 ## Regressions Log
+- **2026-09-26 — Read Along “wrong block” vs PDF page (fixed; content was correct, UX was misleading)**
+  - *Symptom*: On doc 32 page 3/94, Read Along showed famous statistics quotes while player said “BLOCK 2 OF 19”; user expected Introduction/Preface.
+  - *Root cause (confirmed via SQLite + PyMuPDF)*: Chunking **does** store `page_number` per block (1 PDF page = 1 block when non-empty). Page 3’s stored text **is** the quotes epigraph (`block_index=1, page_number=3`). Introduction is on **page 11** (`block_index=9`). The real bug was **two independent counters never linked in UI**: PDF viewer tracked `manualPage` locally, player showed playable-block ordinal (19 done of 91 total), and nothing shared a single `viewerPage`. Users read “block 2” as “page 2” or expected front-matter headings on page 3.
+  - *Evidence (first 5 blocks, doc 32)*: `block_index 0 → page 2 “How to Lie with Statistics”`; `1 → page 3 quotes`; `2 → page 4 “More Praise…”`; `3 → page 5 “Also by Darrell Huff”`; `4 → page 6 title page repeat`.
+  - *Fix*: `viewerPage` in `ReaderContext` as single source of truth; PDF nav + read-along + player all use page numbers when `page_count` exists; playback syncs viewer to block’s `page_number` while playing.
+
+- **2026-09-26 — Bionic Reading: two prior fix attempts failed verification (fixed with test + inline style)**
+  - *Symptom*: Bionic toggle on but no visible bolding in PDF read-along panel (reported twice after “fixed”).
+  - *Why prior fixes looked done*: Self-reported checks on Text View or class-name presence only; no automated component test; Tailwind `font-bold` alone did not always yield `font-weight: 700` in computed style on read-along spans.
+  - *What changed this time*: (1) `style={{ fontWeight: 700 }}` on bionic segments in addition to `font-bold`; (2) `ReaderBlockText.test.tsx` (RTL + jsdom) asserts `.font-bold` nodes exist and `getComputedStyle().fontWeight === '700'` for idle and active-playback paths; (3) browser CDP verification on doc 32 Original view with bionic enabled.
+  - *Guard*: `npm run test` includes 3 `ReaderBlockText` bionic tests; do not mark fixed without them passing **and** computed-style check on the mounted Original read-along panel.
+
+- **2026-09-26 — Bionic Reading invisible on Original document view (fixed; prior “layered renderer” fix did NOT address this)**
+  - *Symptom*: Bionic toggle appeared on in settings, but no bolding on the view users actually read from (Original tab for uploaded TXT/PDF).
+  - *Root cause (confirmed via DOM)*: `OriginalDocumentViewer` rendered a raw `<pre>` with plain text — **zero** `.font-bold` nodes, `getComputedStyle` = `400`. Toggle state was `true` in `localStorage`; the mounted component simply never called bionic utilities. Text View already worked (`font-weight: 700` on bold spans).
+  - *Why the prior fix looked “verified”*: Text View was tested; Original view was not. Checking “class present” on Text View ≠ checking computed style on the view users default to.
+  - *Fix*: Original TXT view now renders `blocks` through `ReaderBlockText`; PDF Original view adds a per-page read-along panel (same component) under the canvas.
+
+- **2026-09-26 — Synced highlighting jumped to wrong words (fixed)**
+  - *Symptom*: Highlight jumped randomly / lagged behind speech, especially after block changes or when Whisper transcribed differently from block text (`one` vs `1`, merged tokens like `QTestB.`).
+  - *Root cause (confirmed via logged alignment)*: (1) `buildTextTokens` blindly advanced both text and Whisper indices 1:1 even on mismatches, drifting all subsequent timestamps; (2) inclusive `[start, end]` boundaries double-highlighted at edges; (3) `currentTime` reset ran in `useEffect` **after** paint, so a new block briefly inherited the previous block's clock.
+  - *Fix*: `assignWordTimestamps()` with search-ahead matching, number-word equivalence, compound-token (vowelless) joins; half-open `isTokenActiveAtTime`; `useLayoutEffect` clock reset on block change. Unit tests in `textHighlight.test.ts`.
+
+- **2026-09-26 — Bionic + highlight mutual exclusion in Text View active block (fixed earlier)**
+  - *Symptom*: Bionic disappeared during playback in Text View only.
+  - *Root cause*: Separate highlight branch in `TextViewReader` omitted bionic markup.
+  - *Fix*: `ReaderBlockText` layers both. This was real but insufficient alone — Original view and alignment bugs remained.
+
+### Testing practices (Bionic + highlighting)
+Do **not** mark these features verified without:
+1. **Bionic**: `ReaderBlockText.test.tsx` passing **plus** DOM inspection on the **actual mounted view** (Original *and* Text) + `getComputedStyle(el).fontWeight` on a bold segment (expect `700`), not just toggle state or class names.
+2. **Highlighting**: At least five `(audioTime, expectedWord, highlightedWord)` tuples from real playback or the same `buildTextTokens` path the UI uses — logged, not assumed.
+3. `AudioPlayer` exposes `data-current-time` / `data-active-block-id` on the player bar for manual/E2E sampling.
+
 - **2026-09-26 — TTS playback cut off after ~1–2s (fixed)**
   - *Symptom*: Audio appeared to stop after ~1.5s even though backend files were full length.
   - *Root cause (confirmed)*: **Frontend playback regression**, not truncated synthesis. The job-queue step replaced `fetchDoc` polling with status-only `pollAudioStatus`, starving the client of fresh block metadata during generation. Combined with `AudioPlayer` re-running its load/play effect on every `timeupdate` (via `playableBlocks` in the effect dependency array + `ReaderContext` re-renders), playback could interrupt or reset mid-block.
@@ -150,6 +204,7 @@ The application is designed to be deployed on Render using a `render.yaml` Bluep
 - [x] Step 3 — Bionic Reading mode (global preference, punctuation-aware transform, tests)
 - [x] Sequential TTS job queue + queued/processing UI
 - [x] Step 7 — Named voice profiles (Voice Library, reuse without re-upload)
+- [x] Step 7b — Voice Clone Studio (typed text / document / file → queued cloned audio)
 - [ ] Step 4 — Forced alignment polish + word-level timestamp accuracy (next step)
 - [ ] XTTS v2 natural tier for document TTS
 - [ ] Deploy live to Render

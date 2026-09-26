@@ -14,3 +14,4 @@ export interface FolderItem {
 }
 
 export type LibraryViewMode = 'grid' | 'list';
+

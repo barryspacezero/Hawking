@@ -1,8 +1,7 @@
 import { Play } from 'lucide-react';
 import { useReader } from '../context/ReaderContext';
 import { useBionicReading } from '../hooks/useBionicReading';
-import { buildTextTokens, type WordTimestamp } from '../utils/textHighlight';
-import { BionicPlainText } from '../utils/bionicTextRender';
+import { ReaderBlockText } from './ReaderBlockText';
 
 export interface ReaderBlock {
   id: number;
@@ -32,10 +31,10 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
       }}
     >
       <div
-        className="mb-6 rounded-xl border px-4 py-3 text-xs opacity-70"
+        className="mb-6 rounded-none border px-4 py-3 text-xs opacity-70"
         style={{ borderColor: 'var(--player-border)', color: 'var(--reader-text)' }}
       >
-        Extracted text used for text-to-speech. This is the verbatim source text — not a summary or rewrite.
+        Extracted text used for text- This is the verbatim source text — not a summary or rewrite.
       </div>
 
       {blocks.length === 0 ? (
@@ -47,42 +46,6 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
             const showPageHeader = block.page_number != null && block.page_number !== prevPage;
             const isPlayable = block.audio_status === 'done';
             const isActive = activeBlockId === block.id;
-
-            let content = (
-              <p className="whitespace-pre-wrap">
-                <BionicPlainText text={block.text} enabled={bionicReading} />
-              </p>
-            );
-
-            if (isActive && block.word_timestamps) {
-              try {
-                const whisperWords: WordTimestamp[] = JSON.parse(block.word_timestamps);
-                const tokens = buildTextTokens(block.text, whisperWords);
-
-                content = (
-                  <p className="whitespace-pre-wrap">
-                    {tokens.map((token, idx) => {
-                      if (token.type === 'sep') {
-                        return <span key={idx}>{token.text}</span>;
-                      }
-                      const isWordActive = currentTime >= token.start && currentTime <= token.end;
-                      return (
-                        <span
-                          key={idx}
-                          className={`transition-colors duration-75 ${
-                            isWordActive ? 'bg-brand/20 text-brand rounded-sm' : ''
-                          }`}
-                        >
-                          {token.text}
-                        </span>
-                      );
-                    })}
-                  </p>
-                );
-              } catch {
-                // fallback to plain text
-              }
-            }
 
             return (
               <div key={block.id}>
@@ -102,7 +65,7 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
                   id={`block-${block.id}`}
                   onClick={() => onBlockClick(block.id, isPlayable)}
                   className={`
-                    relative group rounded-xl p-4 -mx-4 transition-all duration-300 cursor-pointer
+                    relative group rounded-none p-4 -mx-4 transition-all duration-300 cursor-pointer
                     ${isActive ? 'ring-2 ring-brand/30' : ''}
                     ${isPlayable ? 'hover:bg-black/5' : 'opacity-60 cursor-not-allowed'}
                   `}
@@ -118,11 +81,17 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
                     </div>
                   )}
                   {isPlayable && !isActive && (
-                    <div className="absolute -left-12 top-1/2 -translate-y-1/2 hidden lg:flex items-center justify-center w-8 h-8 rounded-full bg-brand/20 text-brand opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute -left-12 top-1/2 -translate-y-1/2 hidden lg:flex items-center justify-center w-8 h-8 rounded-none bg-brand/20 text-brand opacity-0 group-hover:opacity-100 transition-opacity">
                       <Play className="w-4 h-4 ml-0.5" />
                     </div>
                   )}
-                  {content}
+                  <ReaderBlockText
+                    text={block.text}
+                    wordTimestamps={block.word_timestamps}
+                    currentTime={currentTime}
+                    isActive={isActive}
+                    bionicEnabled={bionicReading}
+                  />
                 </div>
               </div>
             );
@@ -132,3 +101,4 @@ export default function TextViewReader({ blocks, onBlockClick }: TextViewReaderP
     </div>
   );
 }
+

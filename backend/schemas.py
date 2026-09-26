@@ -106,3 +106,19 @@ class VoiceProfileSchema(BaseModel):
     reference_audio_path: str
     conditioning_path: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class StudioGenerationSchema(BaseModel):
+    id: int
+    voice_profile_id: int
+    input_type: str
+    source_document_id: Optional[int] = None
+    source_filename: Optional[str] = None
+    text_preview: str
+    status: str
+    queue_position: Optional[int] = None
+    active_studio_job_id: Optional[int] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    has_audio: bool = False
+    model_config = ConfigDict(from_attributes=True)

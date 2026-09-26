@@ -1,0 +1,4 @@
+# Context Management Rule
+
+- Always maintain and update `context.md` with the current state of the project, including goals, completed tasks, ongoing work, architecture decisions, and any other relevant context.
+- This ensures that if the development environment or IDE is switched, the context can be seamlessly restored by reading `context.md`.

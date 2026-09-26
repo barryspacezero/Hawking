@@ -80,3 +80,4 @@ export async function bulkDeleteDocuments(documentIds: number[]): Promise<void> 
     throw new Error(err.detail || 'Failed to delete documents');
   }
 }
+

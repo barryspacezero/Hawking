@@ -1,5 +1,6 @@
 """Voice cloning API endpoints."""
 
+import asyncio
 import base64
 import json
 import logging
@@ -101,6 +102,10 @@ async def synthesize_voice_clone(request: Request, db: Session = Depends(get_db)
         raise HTTPException(status_code=500, detail=f"Synthesis failed: {exc}")
 
 
+def _sse_payload(event: dict) -> str:
+    return f"data: {json.dumps(event)}\n\n"
+
+
 async def _sse_voice_stream(
     text: str,
     ref_path: str,
@@ -111,33 +116,48 @@ async def _sse_voice_stream(
     """Generate SSE events with audio chunks and metrics."""
     service = VoiceCloneService.get_instance()
     final_metrics = None
+    loop = asyncio.get_running_loop()
+    chunk_iter = stream_synthesize(text, ref_path, conditioning_path=cond_path)
+
+    def _next_chunk():
+        try:
+            return next(chunk_iter)
+        except StopIteration:
+            return None
 
     try:
-        cached = service.prepare_speaker(ref_path, conditioning_path=cond_path)
-        if cached and profile_id is not None and db is not None:
-            _persist_conditioning_cache(db, profile_id)
+        yield _sse_payload({
+            "type": "status",
+            "message": "Loading voice model — first run can take up to a minute on CPU...",
+        })
 
-        for chunk, metrics in stream_synthesize(text, ref_path, conditioning_path=cond_path):
+        while True:
+            result = await loop.run_in_executor(None, _next_chunk)
+            if result is None:
+                break
+            chunk, metrics = result
+
+            if chunk.index == 0 and profile_id is not None and db is not None:
+                _persist_conditioning_cache(db, profile_id)
+
             final_metrics = metrics
             wav_bytes = service.waveform_to_wav_bytes(chunk.waveform, chunk.sample_rate)
-            event_data = {
+            yield _sse_payload({
                 "type": "audio",
                 "chunk_index": chunk.index,
                 "is_last": chunk.is_last,
                 "text": chunk.text,
                 "sample_rate": chunk.sample_rate,
                 "data": base64.b64encode(wav_bytes).decode("ascii"),
-            }
-            yield f"data: {json.dumps(event_data)}\n\n"
+            })
 
         if final_metrics:
-            metrics_event = {"type": "metrics", **final_metrics.to_dict()}
-            yield f"data: {json.dumps(metrics_event)}\n\n"
+            yield _sse_payload({"type": "metrics", **final_metrics.to_dict()})
 
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        yield _sse_payload({"type": "done"})
     except Exception as exc:
         logger.error("Streaming synthesis failed: %s", exc)
-        yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        yield _sse_payload({"type": "error", "message": str(exc)})
 
 
 @router.post("/stream")

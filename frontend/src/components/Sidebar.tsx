@@ -46,7 +46,7 @@ export default function Sidebar() {
     { name: 'Home', icon: Home, path: '/' },
     { name: 'New Task', icon: Plus, path: '/upload' },
     { name: 'Library', icon: Library, path: '/library' },
-    { name: 'Voice Clone', icon: Mic, path: '/voice-clone' },
+    { name: 'Voice Studio', icon: Mic, path: '/voice-clone' },
     { name: 'Voice Library', icon: AudioLines, path: '/voice-library' },
   ];
 
@@ -67,14 +67,14 @@ export default function Sidebar() {
         }}
         className="p-5 flex items-center space-x-2 hover:opacity-90 transition"
       >
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-brand-light">
           <path d="M4 12C4 12 5.5 15 8 15C10.5 15 12 10 12 10C12 10 13.5 7 16 7C18.5 7 20 12 20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <span className="text-xl font-bold text-white tracking-wide">Hawking</span>
+        <span className="text-xl font-extrabold      tracking-wide">Hawking</span>
       </Link>
 
       <div className="px-4 mb-4">
-        <Link to="/upload" className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-full py-2 border border-white/10 transition">
+        <Link to="/upload" className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-none py-2 border border-white/10 transition">
           <Plus className="w-4 h-4" />
           <span className="text-sm font-medium">Add</span>
         </Link>
@@ -90,8 +90,8 @@ export default function Sidebar() {
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg mb-0.5 transition ${
-                isActive ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+              className={`flex items-center space-x-3 px-3 py-2.5 rounded-none mb-0.5 transition ${
+                isActive ? 'bg-brand/15 text-brand-light font-semibold border-l-2 border-brand-light' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -109,9 +109,9 @@ export default function Sidebar() {
               <Link
                 key={folder.id}
                 to={`/library/folder/${folder.id}`}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                className={`flex items-center space-x-3 px-3 py-2 rounded-none transition ${
                   location.pathname === `/library/folder/${folder.id}`
-                    ? 'bg-white/10 text-white'
+                    ? 'bg-brand/10 text-brand'
                     : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                 }`}
               >
@@ -124,15 +124,15 @@ export default function Sidebar() {
       )}
 
       <div className="px-4 mb-4">
-        <div className="flex bg-black/40 rounded-full p-1 border border-white/5">
+        <div className="flex bg-black/40 rounded-none p-1 border border-white/5">
           <button
-            className={`flex-1 text-xs font-medium py-1.5 rounded-full transition ${activeTab === 'Tasks' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-300'}`}
+            className={`flex-1 text-xs font-medium py-1.5 rounded-none transition ${activeTab === 'Tasks' ? 'bg-brand/10 text-brand' : 'text-gray-400 hover:text-gray-300'}`}
             onClick={() => setActiveTab('Tasks')}
           >
             Tasks
           </button>
           <button
-            className={`flex-1 text-xs font-medium py-1.5 rounded-full transition ${activeTab === 'Files' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-300'}`}
+            className={`flex-1 text-xs font-medium py-1.5 rounded-none transition ${activeTab === 'Files' ? 'bg-brand/10 text-brand' : 'text-gray-400 hover:text-gray-300'}`}
             onClick={() => setActiveTab('Files')}
           >
             Files
@@ -157,9 +157,9 @@ export default function Sidebar() {
             <Link
               key={doc.id}
               to={`/document/${doc.id}`}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+              className={`flex items-center space-x-3 px-3 py-2 rounded-none transition ${
                 location.pathname === `/document/${doc.id}`
-                  ? 'bg-white/10 text-white'
+                  ? 'bg-brand/10 text-brand'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
               }`}
             >
@@ -189,17 +189,17 @@ export default function Sidebar() {
         </div>
         <div className="flex items-center justify-between group">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-orange-400 flex items-center justify-center text-white font-bold shadow-inner">
+            <div className="w-9 h-9 rounded-none    flex items-center justify-center text-white font-bold ">
               {userInitial}
             </div>
             <div className="max-w-[120px]">
               <div className="text-sm font-medium text-gray-200 truncate" title={user?.email || ''}>{userName}</div>
-              <div className="text-xs text-yellow-500 font-medium">Premium</div>
+              <div className="text-xs text-brand font-medium">Premium</div>
             </div>
           </div>
           <button
             onClick={signOut}
-            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition opacity-0 group-hover:opacity-100"
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-none transition opacity-0 group-hover:opacity-100"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />
@@ -209,3 +209,6 @@ export default function Sidebar() {
     </div>
   );
 }
+
+
+

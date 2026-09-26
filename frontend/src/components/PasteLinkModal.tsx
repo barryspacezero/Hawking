@@ -69,12 +69,12 @@ export default function PasteLinkModal({ isOpen, onClose }: PasteLinkModalProps)
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-cardBg rounded-2xl w-full max-w-md border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+      <div className="bg-cardBg rounded-none w-full max-w-md border border-white/10  overflow-hidden flex flex-col">
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/5">
           <h2 className="text-lg font-semibold text-white">Paste Web Link</h2>
-          <button onClick={handleClose} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/5 transition">
+          <button onClick={handleClose} className="p-2 text-gray-400 hover:text-white rounded-none hover:bg-white/5 transition">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -82,7 +82,7 @@ export default function PasteLinkModal({ isOpen, onClose }: PasteLinkModalProps)
         {/* Content */}
         <div className="p-6">
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-none text-red-400 text-sm">
               {error}
             </div>
           )}
@@ -97,7 +97,7 @@ export default function PasteLinkModal({ isOpen, onClose }: PasteLinkModalProps)
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://example.com/article" 
-                  className="w-full bg-cardBg border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand"
+                  className="w-full bg-cardBg border border-white/10 rounded-none pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
               <p className="text-xs text-gray-500 mt-2">
@@ -112,7 +112,7 @@ export default function PasteLinkModal({ isOpen, onClose }: PasteLinkModalProps)
           <button 
             type="button"
             onClick={handleClose}
-            className="px-5 py-2.5 rounded-xl font-medium text-sm text-gray-300 hover:text-white hover:bg-white/5 transition"
+            className="px-5 py-2.5 rounded-none font-medium text-sm text-gray-300 hover:text-white hover:bg-white/5 transition"
           >
             Cancel
           </button>
@@ -120,7 +120,7 @@ export default function PasteLinkModal({ isOpen, onClose }: PasteLinkModalProps)
             type="submit"
             form="paste-link-form"
             disabled={isSubmitting || !url.trim()}
-            className="flex items-center space-x-2 bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 rounded-xl font-medium text-sm text-white transition shadow-sm"
+            className="flex items-center space-x-2 bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 rounded-none font-medium text-sm text-white transition "
           >
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             <span>{isSubmitting ? 'Fetching...' : 'Import Link'}</span>
@@ -131,3 +131,4 @@ export default function PasteLinkModal({ isOpen, onClose }: PasteLinkModalProps)
     </div>
   );
 }
+

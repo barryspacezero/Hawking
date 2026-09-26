@@ -55,3 +55,22 @@ class VoiceProfile(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     reference_audio_path = Column(String, nullable=False)
     conditioning_path = Column(String, nullable=True)
+
+    studio_jobs = relationship("StudioGeneration", back_populates="voice_profile")
+
+
+class StudioGeneration(Base):
+    __tablename__ = "studio_generations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    voice_profile_id = Column(Integer, ForeignKey("voice_profiles.id"), nullable=False, index=True)
+    input_type = Column(String, nullable=False)  # text | document | file
+    source_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
+    source_filename = Column(String, nullable=True)
+    input_text = Column(Text, nullable=False)
+    status = Column(String, default="queued")  # queued | processing | done | failed
+    audio_path = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    voice_profile = relationship("VoiceProfile", back_populates="studio_jobs")

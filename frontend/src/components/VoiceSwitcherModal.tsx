@@ -15,12 +15,12 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="w-full max-w-sm rounded-2xl p-6 pointer-events-auto shadow-2xl"
+          className="w-full max-w-sm rounded-none p-6 pointer-events-auto "
           style={{ backgroundColor: 'var(--player-bg)', color: 'var(--reader-text)', border: '1px solid var(--player-border)' }}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Voice Model</h2>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-black/10 transition">
+            <button onClick={onClose} className="p-2 rounded-none hover:bg-black/10 transition">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -30,7 +30,7 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
             <div className="text-xs font-bold uppercase tracking-wider opacity-50 mt-2 mb-1">Standard (Robotic)</div>
             <button
               onClick={() => { onSelectVoice('gtts'); onClose(); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition ${currentVoice === 'gtts' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
+              className={`w-full flex items-center justify-between p-3 rounded-none border-2 transition ${currentVoice === 'gtts' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
             >
               <div className="text-left">
                 <div className="font-semibold text-sm">Google TTS (Female)</div>
@@ -42,7 +42,7 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
             <div className="text-xs font-bold uppercase tracking-wider opacity-50 mt-4 mb-1">Premium (Human-Like AI)</div>
             <button
               onClick={() => { onSelectVoice('kokoro_female_1'); onClose(); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition ${currentVoice === 'kokoro_female_1' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
+              className={`w-full flex items-center justify-between p-3 rounded-none border-2 transition ${currentVoice === 'kokoro_female_1' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
             >
               <div className="text-left">
                 <div className="font-semibold text-sm">Heart (Female)</div>
@@ -53,7 +53,7 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
 
             <button
               onClick={() => { onSelectVoice('kokoro_female_2'); onClose(); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition ${currentVoice === 'kokoro_female_2' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
+              className={`w-full flex items-center justify-between p-3 rounded-none border-2 transition ${currentVoice === 'kokoro_female_2' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
             >
               <div className="text-left">
                 <div className="font-semibold text-sm">Bella (Female)</div>
@@ -64,7 +64,7 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
 
             <button
               onClick={() => { onSelectVoice('kokoro_male_1'); onClose(); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition ${currentVoice === 'kokoro_male_1' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
+              className={`w-full flex items-center justify-between p-3 rounded-none border-2 transition ${currentVoice === 'kokoro_male_1' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
             >
               <div className="text-left">
                 <div className="font-semibold text-sm">Michael (Male)</div>
@@ -75,7 +75,7 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
 
             <button
               onClick={() => { onSelectVoice('kokoro_male_2'); onClose(); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition ${currentVoice === 'kokoro_male_2' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
+              className={`w-full flex items-center justify-between p-3 rounded-none border-2 transition ${currentVoice === 'kokoro_male_2' ? 'border-brand bg-brand/10' : 'border-transparent bg-black/5 hover:bg-black/10'}`}
             >
               <div className="text-left">
                 <div className="font-semibold text-sm">Adam (Male)</div>
@@ -94,3 +94,4 @@ export default function VoiceSwitcherModal({ isOpen, onClose, currentVoice, onSe
     </>
   );
 }
+

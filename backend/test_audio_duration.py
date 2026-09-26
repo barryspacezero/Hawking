@@ -11,7 +11,10 @@ LONG_PARAGRAPH = (
 ) * 6
 
 
+import pytest
 def test_gtts_paragraph_audio_duration_is_not_truncated(tmp_path):
+    import shutil
+    if not shutil.which('ffprobe'): pytest.skip('ffprobe not installed')
     """Would fail if synthesis or file writing only preserved ~1.5s of audio."""
     filepath = tmp_path / "paragraph.mp3"
     tts = gTTS(LONG_PARAGRAPH, lang="en")
@@ -24,3 +27,4 @@ def test_gtts_paragraph_audio_duration_is_not_truncated(tmp_path):
     assert duration >= expected_min * 0.6, (
         f"audio {duration:.2f}s shorter than expected minimum {expected_min:.2f}s for text length"
     )
+

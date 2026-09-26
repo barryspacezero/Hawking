@@ -54,6 +54,7 @@ export default function DocumentDetail() {
     activeBlockId,
     setActiveBlockId,
     setIsPlaying,
+    setViewerPage,
   } = useReader();
 
   const fetchDoc = async () => {
@@ -77,8 +78,9 @@ export default function DocumentDetail() {
   useEffect(() => {
     setLoading(true);
     setError('');
+    setViewerPage(1);
     fetchDoc();
-  }, [id]);
+  }, [id, setViewerPage]);
 
   useEffect(() => {
     if (!doc) return;
@@ -203,12 +205,12 @@ export default function DocumentDetail() {
   return (
     <div className="min-h-screen pb-40 flex flex-col">
       <div
-        className="sticky top-0 z-30 px-4 py-3 flex items-center justify-between border-b shadow-sm backdrop-blur-md gap-3"
+        className="sticky top-0 z-30 px-4 py-3 flex items-center justify-between border-b  backdrop-blur-md gap-3"
         style={{ backgroundColor: 'var(--player-bg)', borderColor: 'var(--player-border)' }}
       >
         <Link
           to={libraryBackPath}
-          className="flex items-center space-x-1 p-2 rounded-full hover:bg-black/5 transition shrink-0"
+          className="flex items-center space-x-1 p-2 rounded-none hover:bg-black/5 transition shrink-0"
           style={{ color: 'var(--reader-text)' }}
         >
           <ArrowLeft className="w-5 h-5" />
@@ -228,7 +230,7 @@ export default function DocumentDetail() {
       {!allDone && (
         <div className="max-w-2xl mx-auto mt-4 px-4 w-full">
           <div
-            className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-xl border"
+            className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-none border"
             style={{ backgroundColor: 'var(--player-bg)', borderColor: 'var(--player-border)' }}
           >
             <div className="mb-4 sm:mb-0">
@@ -252,7 +254,7 @@ export default function DocumentDetail() {
                 value={voiceTier}
                 onChange={(e) => setVoiceTier(e.target.value)}
                 disabled={isGenerating || totalBlocks === 0}
-                className="flex-1 sm:flex-none border rounded-md text-sm px-3 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
+                className="flex-1 sm:flex-none border rounded-none text-sm px-3 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
                 style={{ borderColor: 'var(--player-border)', color: 'var(--reader-text)' }}
               >
                 <option value="gtts" style={{ color: 'black' }}>Google TTS (Female)</option>
@@ -264,7 +266,7 @@ export default function DocumentDetail() {
               <button
                 onClick={() => handleGenerateAudio(voiceTier)}
                 disabled={isGenerating || totalBlocks === 0}
-                className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-md font-medium text-white transition whitespace-nowrap ${
+                className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-none font-medium text-white transition whitespace-nowrap ${
                   isGenerating || totalBlocks === 0 ? 'bg-brand/60 cursor-not-allowed' : 'bg-brand hover:bg-brand-hover'
                 }`}
               >
@@ -309,6 +311,7 @@ export default function DocumentDetail() {
         <AudioPlayer
           documentId={id!}
           blocks={doc.blocks}
+          pageCount={doc.page_count}
           onVoiceClick={() => setIsVoiceModalOpen(true)}
         />
       )}
@@ -322,3 +325,5 @@ export default function DocumentDetail() {
     </div>
   );
 }
+
+

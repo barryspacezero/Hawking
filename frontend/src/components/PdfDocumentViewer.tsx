@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useReader } from '../context/ReaderContext';
+import { useBionicReading } from '../hooks/useBionicReading';
+import { ReaderBlockText } from './ReaderBlockText';
 import { API_URL } from '../config/api';
 import {
   getActivePdfHighlights,
@@ -27,9 +29,18 @@ interface PdfDocumentViewerProps {
 }
 
 export default function PdfDocumentViewer({ documentId, blocks, pageCount }: PdfDocumentViewerProps) {
-  const { activeBlockId, currentTime, pdfScale, setPdfScale } = useReader();
+  const {
+    activeBlockId,
+    currentTime,
+    pdfScale,
+    setPdfScale,
+    fontSize,
+    viewerPage,
+    setViewerPage,
+    isPlaying,
+  } = useReader();
+  const { enabled: bionicReading } = useBionicReading();
   const [numPages, setNumPages] = useState(pageCount);
-  const [manualPage, setManualPage] = useState<number | null>(null);
 
   const sourceUrl = `${API_URL}/documents/${documentId}/source`;
 
@@ -48,7 +59,13 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
     [blocks, activeBlockId],
   );
 
-  const activePage = manualPage ?? activeBlock?.page_number ?? 1;
+  const activePage = viewerPage ?? activeBlock?.page_number ?? 1;
+
+  // While audio is playing, keep the PDF/read-along on the block's source page.
+  useEffect(() => {
+    if (!isPlaying || !activeBlock?.page_number) return;
+    setViewerPage(activeBlock.page_number);
+  }, [activeBlockId, activeBlock?.page_number, isPlaying, setViewerPage]);
 
   const highlights = useMemo(() => {
     if (!activeBlock || activeBlock.page_number !== activePage) return [];
@@ -76,16 +93,16 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
     }
   }, [activeBlock, activePage, blocksByPage]);
 
-  useEffect(() => {
-    setManualPage(null);
-  }, [activeBlockId]);
-
   const goToPage = (page: number) => {
     const clamped = Math.max(1, Math.min(page, numPages));
-    setManualPage(clamped);
+    setViewerPage(clamped);
   };
 
   const baseWidth = 680;
+  const pageBlocks = useMemo(
+    () => blocks.filter((block) => block.page_number === activePage),
+    [blocks, activePage],
+  );
 
   return (
     <div className="flex flex-col h-full min-h-[60vh]">
@@ -97,7 +114,7 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
           <button
             onClick={() => goToPage(activePage - 1)}
             disabled={activePage <= 1}
-            className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 transition"
+            className="p-2 rounded-none hover:bg-white/10 disabled:opacity-30 transition"
             style={{ color: 'var(--reader-text)' }}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -108,7 +125,7 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
           <button
             onClick={() => goToPage(activePage + 1)}
             disabled={activePage >= numPages}
-            className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30 transition"
+            className="p-2 rounded-none hover:bg-white/10 disabled:opacity-30 transition"
             style={{ color: 'var(--reader-text)' }}
           >
             <ChevronRight className="w-4 h-4" />
@@ -118,7 +135,7 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
         <div className="flex items-center gap-2">
           <button
             onClick={() => setPdfScale(Math.max(0.5, pdfScale - 0.1))}
-            className="p-2 rounded-lg hover:bg-white/10 transition"
+            className="p-2 rounded-none hover:bg-white/10 transition"
             style={{ color: 'var(--reader-text)' }}
             title="Zoom out"
           >
@@ -129,7 +146,7 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
           </span>
           <button
             onClick={() => setPdfScale(Math.min(2.5, pdfScale + 0.1))}
-            className="p-2 rounded-lg hover:bg-white/10 transition"
+            className="p-2 rounded-none hover:bg-white/10 transition"
             style={{ color: 'var(--reader-text)' }}
             title="Zoom in"
           >
@@ -147,7 +164,7 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
           className="flex flex-col items-center"
         >
           <div
-            className={`relative shadow-2xl rounded-sm overflow-hidden transition ring-2 ${
+            className={`relative  rounded-none overflow-hidden transition ring-2 ${
               activeBlockId ? 'ring-brand/60' : 'ring-transparent'
             }`}
           >
@@ -170,7 +187,7 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
                   return (
                     <div
                       key={idx}
-                      className="absolute bg-yellow-400/50 rounded-sm transition-all duration-75"
+                      className="absolute bg-brand/40 rounded-none transition-all duration-75"
                       style={{
                         left: `${pct.left}%`,
                         top: `${pct.top}%`,
@@ -187,7 +204,40 @@ export default function PdfDocumentViewer({ documentId, blocks, pageCount }: Pdf
             </div>
           </div>
         </Document>
+
+        {pageBlocks.length > 0 && (
+          <div
+            className="w-full max-w-[680px] mt-6 rounded-none border px-4 py-4"
+            style={{ borderColor: 'var(--player-border)', backgroundColor: 'var(--player-bg)' }}
+          >
+            <p className="text-xs uppercase tracking-wider opacity-60 mb-3" style={{ color: 'var(--reader-text)' }}>
+              Read along — page {activePage}
+            </p>
+            <div className="space-y-4" style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}>
+              {pageBlocks.map((block) => {
+                const isActive = activeBlockId === block.id;
+                return (
+                  <div
+                    key={block.id}
+                    id={`block-${block.id}`}
+                    className={isActive ? 'ring-2 ring-brand/30 rounded-none p-2 -m-2' : undefined}
+                  >
+                    <ReaderBlockText
+                      text={block.text}
+                      wordTimestamps={block.word_timestamps}
+                      currentTime={currentTime}
+                      isActive={isActive}
+                      bionicEnabled={bionicReading}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+

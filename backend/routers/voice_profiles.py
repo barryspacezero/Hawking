@@ -144,16 +144,15 @@ def delete_voice_profile(profile_id: int, db: Session = Depends(get_db)):
 
 
 def get_profile_reference_path(profile: models.VoiceProfile) -> str:
-    abs_path = resolve_profile_path(profile.reference_audio_path)
-    if not os.path.exists(abs_path):
+    from voice_clone.profile_store import profile_reference_abs
+    try:
+        return profile_reference_abs(profile)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Voice profile reference audio is missing.")
-    return abs_path
 
 
 def get_profile_conditioning_path(profile: models.VoiceProfile) -> Optional[str]:
-    if not profile.conditioning_path:
-        return None
-    abs_path = resolve_profile_path(profile.conditioning_path)
-    return abs_path if os.path.exists(abs_path) else None
+    from voice_clone.profile_store import profile_conditioning_abs
+    return profile_conditioning_abs(profile)
 
 

@@ -17,6 +17,8 @@ interface ReaderState {
   activeBlockId: number | null;
   isPlaying: boolean;
   currentTime: number;
+  /** PDF page currently shown in Original viewer (1-based); shared with read-along. */
+  viewerPage: number | null;
   
   setTheme: (theme: Theme) => void;
   setFontSize: (size: number) => void;
@@ -30,6 +32,7 @@ interface ReaderState {
   setActiveBlockId: (id: number | null) => void;
   setIsPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
+  setViewerPage: (page: number | null) => void;
 }
 
 const defaultState: ReaderState = {
@@ -45,6 +48,7 @@ const defaultState: ReaderState = {
   activeBlockId: null,
   isPlaying: false,
   currentTime: 0,
+  viewerPage: null,
   setTheme: () => {},
   setFontSize: () => {},
   setFontFamily: () => {},
@@ -57,6 +61,7 @@ const defaultState: ReaderState = {
   setActiveBlockId: () => {},
   setIsPlaying: () => {},
   setCurrentTime: () => {},
+  setViewerPage: () => {},
 };
 
 const ReaderContext = createContext<ReaderState>(defaultState);
@@ -100,6 +105,7 @@ export const ReaderProvider: FC<ProviderProps> = ({ children }) => {
   const [activeBlockId, setActiveBlockId] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [viewerPage, setViewerPage] = useState<number | null>(null);
 
   // Persistence effects
   useEffect(() => { localStorage.setItem('reader_theme', theme); }, [theme]);
@@ -129,6 +135,7 @@ export const ReaderProvider: FC<ProviderProps> = ({ children }) => {
     activeBlockId,
     isPlaying,
     currentTime,
+    viewerPage,
     
     setTheme: setThemeState,
     setFontSize: setFontSizeState,
@@ -142,6 +149,7 @@ export const ReaderProvider: FC<ProviderProps> = ({ children }) => {
     setActiveBlockId,
     setIsPlaying,
     setCurrentTime,
+    setViewerPage,
   };
 
   return (
@@ -150,3 +158,4 @@ export const ReaderProvider: FC<ProviderProps> = ({ children }) => {
     </ReaderContext.Provider>
   );
 };
+

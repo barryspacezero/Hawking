@@ -34,3 +34,4 @@ export const TEXT_PREVIEW_FILE_TYPES = new Set([
   'csv',
   'log',
 ]);
+

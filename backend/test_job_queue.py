@@ -12,8 +12,9 @@ def test_two_documents_process_one_at_a_time():
     currently_active: list[int] = []
     overlap_detected = False
 
-    def mock_synthesis(document_id: int, _voice_tier: str) -> None:
+    def mock_synthesis(job: AudioJob) -> None:
         nonlocal overlap_detected
+        document_id = job.document_id or 0
         with active_lock:
             if currently_active:
                 overlap_detected = True
@@ -46,7 +47,7 @@ def test_two_documents_process_one_at_a_time():
 
 def test_already_done_without_force():
     queue = TTSJobQueue()
-    queue.configure(lambda _doc_id, _tier: None)
+    queue.configure(lambda _job: None)
 
     result, _ = queue.submit(10, "gtts", all_blocks_done=True, force=False)
     assert result == JobSubmitResult.ALREADY_DONE
@@ -54,7 +55,7 @@ def test_already_done_without_force():
 
 def test_force_regenerates_when_done():
     queue = TTSJobQueue()
-    queue.configure(lambda _doc_id, _tier: time.sleep(0.01))
+    queue.configure(lambda _job: time.sleep(0.01))
 
     result, _ = queue.submit(11, "gtts", all_blocks_done=True, force=True)
     assert result == JobSubmitResult.PROCESSING
@@ -62,7 +63,7 @@ def test_force_regenerates_when_done():
 
 def test_no_double_queue_same_document():
     queue = TTSJobQueue()
-    queue.configure(lambda _doc_id, _tier: time.sleep(0.2))
+    queue.configure(lambda _job: time.sleep(0.2))
 
     first, _ = queue.submit(20, "gtts", all_blocks_done=False)
     second, _ = queue.submit(20, "gtts", all_blocks_done=False)
