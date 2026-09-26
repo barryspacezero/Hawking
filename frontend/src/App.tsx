@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import DocumentLibrary from './pages/DocumentLibrary';
 import DocumentUpload from './pages/DocumentUpload';
 import DocumentDetail from './pages/DocumentDetail';
+import VoiceClone from './pages/VoiceClone';
 
 function Home() {
   return (
@@ -29,6 +30,7 @@ function App() {
               <Route path="/library/folder/:folderId" element={<DocumentLibrary />} />
               <Route path="/upload" element={<DocumentUpload />} />
               <Route path="/documents/:id" element={<DocumentDetail />} />
+              <Route path="/voice-clone" element={<VoiceClone />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

@@ -22,6 +22,14 @@ faster-whisper==1.0.3
 # TTS - gTTS fallback (requires internet, free)
 gTTS>=2.5.0
 
+# Voice cloning & streaming TTS
+torch
+torchaudio
+encodec
+chatterbox-tts
+resemblyzer
+librosa
+
 # Dev
 black
 ruff

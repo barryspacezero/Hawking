@@ -1,5 +1,5 @@
 {
-  "summary": "Updated requirements.txt adding TTS dependencies: kokoro-onnx, soundfile, onnxruntime, faster-whisper, gTTS",
-  "updatedAt": "2026-09-26T06:20:54.268986700Z",
+  "summary": "Requirements with voice clone deps",
+  "updatedAt": "2026-09-26T07:03:23.801277Z",
   "userFacing": true
 }
