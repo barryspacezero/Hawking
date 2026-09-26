@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --reader-bg: #151515;
+    --reader-text: #e5e7eb;
+    --reader-accent: #3b82f6;
+    --reader-highlight: #242424;
+    --reader-highlight-active: #1e40af;
+    --player-bg: rgba(26, 26, 26, 0.95);
+    --player-border: #333333;
+  }
+
+  body.theme-light {
+    --reader-bg: #ffffff;
+    --reader-text: #111827;
+    --reader-accent: #2563eb;
+    --reader-highlight: #dbeafe;
+    --reader-highlight-active: #bfdbfe;
+    --player-bg: rgba(255, 255, 255, 0.95);
+    --player-border: #e5e7eb;
+  }
+
+  body.theme-sepia {
+    --reader-bg: #f4ecd8;
+    --reader-text: #5b4636;
+    --reader-accent: #d97706;
+    --reader-highlight: #fde68a;
+    --reader-highlight-active: #fcd34d;
+    --player-bg: rgba(244, 236, 216, 0.95);
+    --player-border: #d6cbb1;
+  }
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--reader-bg);
+  color: var(--reader-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

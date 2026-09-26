@@ -1,0 +1,22 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.pytest_cache/
+backend/venv/
+backend/data/
+
+# OS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
