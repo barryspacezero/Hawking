@@ -336,7 +336,10 @@ export default function DocumentLibrary() {
     );
   };
 
-  const isEmpty = !loading && subfolders.length === 0 && documents.length === 0;
+    const isEmpty = !loading && subfolders.length === 0 && documents.length === 0;
+
+  const filteredDocs = documents.filter(d => d.filename.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredFolders = subfolders.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="p-6 md:p-10 pb-24">
@@ -358,11 +361,22 @@ export default function DocumentLibrary() {
         )}
       </nav>
 
-      {/* Header */}
+            {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-3xl font-extrabold     ">
+        <h1 className="text-3xl font-extrabold">
           {currentFolder ? currentFolder.name : 'Your Library'}
         </h1>
+        
+        <div className="flex-1 max-w-md mx-4 relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search files and folders..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-cardBg border border-borderDark focus:border-brand-light text-sm text-gray-200 placeholder-gray-500 pl-9 pr-4 py-2 rounded-none focus:outline-none focus:ring-0 transition"
+          />
+        </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex bg-black/40 rounded-none p-1 border border-borderDark">
@@ -460,8 +474,8 @@ export default function DocumentLibrary() {
 
       {!loading && !error && !isEmpty && (
         <div className={viewMode === 'grid' ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-3' : 'space-y-2'}>
-          {!currentFolderId && subfolders.map(renderFolderCard)}
-          {documents.map(renderDocCard)}
+          {!currentFolderId && filteredFolders.map(renderFolderCard)}
+          {filteredDocs.map(renderDocCard)}
         </div>
       )}
 
@@ -521,6 +535,7 @@ export default function DocumentLibrary() {
     </div>
   );
 }
+
 
 
 
